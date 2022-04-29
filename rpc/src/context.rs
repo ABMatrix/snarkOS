@@ -340,5 +340,9 @@ fn create_rpc_module<N: Network, E: Environment>(rpc_context: RpcContext<N, E>) 
         Ok(provers)
     })?;
 
+    module.register_async_method("getpoolservers", |_rpc_params, rpc_context| async move {
+        let poolservers = rpc_context.get_poolservers().await;
+        Ok(poolservers)
+    })?;
     Ok(module)
 }

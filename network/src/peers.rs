@@ -215,6 +215,13 @@ impl<N: Network, E: Environment> Peers<N, E> {
     }
 
     ///
+    /// Returns a set of the peers of poolservers.
+    ///
+    pub async fn get_poolservers(&self) -> HashSet<SocketAddr> {
+        self.poolserver_peers.read().await.clone()
+    }
+
+    ///
     /// Returns the set of connected sync nodes.
     ///
     pub async fn connected_sync_nodes(&self) -> HashSet<SocketAddr> {

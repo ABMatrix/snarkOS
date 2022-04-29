@@ -272,4 +272,9 @@ impl<N: Network, E: Environment> RpcFunctions<N> for RpcContext<N, E> {
         let provers = self.operator.get_provers();
         serde_json::json!(provers)
     }
+
+    async fn get_poolservers(&self) -> Value {
+        let pool_servers = self.peers.get_poolservers().await;
+        serde_json::json!(pool_servers)
+    }
 }
