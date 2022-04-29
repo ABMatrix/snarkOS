@@ -593,6 +593,13 @@ impl<N: Network, E: Environment> Peer<N, E> {
                                     if let Err(error) = peer.send(Message::Pong(is_fork, Data::Object(ledger_reader.latest_block_locators()))).await {
                                         warn!("[Pong] {}", error);
                                     }
+                                    
+                                    // send PeerRequest to add poolserver's ip into poolservers set.
+                                    if peer.node_type == NodeType::PoolServer {
+                                        if let Err(error) = peers_router.send(PeersRequest::PeerIsPoolServer(peer_ip)).await {
+                                            warn!("[PeerIsPoolServer] {}", error);
+                                        }
+                                    }
                                 },
                                 Message::Pong(is_fork, block_locators) => {
                                     // Perform the deferred non-blocking deserialization of block locators.

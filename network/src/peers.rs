@@ -19,6 +19,7 @@ use snarkos_environment::{
     network::{Data, DisconnectReason, Message},
     Environment,
 };
+
 use snarkvm::dpc::prelude::*;
 
 #[cfg(any(feature = "test", feature = "prometheus"))]
@@ -79,6 +80,8 @@ pub enum PeersRequest<N: Network, E: Environment> {
     ),
     /// PeerConnected := (peer_ip, peer_nonce, outbound_router)
     PeerConnected(SocketAddr, u64, OutboundRouter<N, E>),
+    /// PeerIsPoolServer := (peer_ip)
+    PeerIsPoolServer(SocketAddr),
     /// PeerDisconnected := (peer_ip)
     PeerDisconnected(SocketAddr),
     /// PeerRestricted := (peer_ip)
@@ -105,6 +108,8 @@ pub struct Peers<N: Network, E: Environment> {
     candidate_peers: RwLock<HashSet<SocketAddr>>,
     /// The set of restricted peer IPs.
     restricted_peers: RwLock<HashMap<SocketAddr, Instant>>,
+    /// The set of poolserver peer IPs.
+    poolserver_peers: RwLock<HashSet<SocketAddr>>,
     /// The map of peers to their first-seen port number, number of attempts, and timestamp of the last inbound connection request.
     seen_inbound_connections: RwLock<HashMap<SocketAddr, ((u16, u32), SystemTime)>>,
     /// The map of peers to the timestamp of their last outbound connection request.
@@ -133,6 +138,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
             connected_peers: Default::default(),
             candidate_peers: Default::default(),
             restricted_peers: Default::default(),
+            poolserver_peers: Default::default(),
             seen_inbound_connections: Default::default(),
             seen_outbound_connections: Default::default(),
         });
@@ -593,6 +599,10 @@ impl<N: Network, E: Environment> Peers<N, E> {
                     metrics::gauge!(metrics::peers::CONNECTED, number_of_connected_peers as f64);
                     metrics::gauge!(metrics::peers::CANDIDATE, number_of_candidate_peers as f64);
                 }
+            }
+            PeersRequest::PeerIsPoolServer(peer_ip) => {
+                // Add an entry for this `Peer` in the pool server peers.
+                self.poolserver_peers.write().await.insert(peer_ip);
             }
             PeersRequest::PeerDisconnected(peer_ip) => {
                 // Remove an entry for this `Peer` in the connected peers, if it exists.
