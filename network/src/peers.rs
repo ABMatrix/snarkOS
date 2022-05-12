@@ -343,7 +343,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
                                         self.connected_nonces().await,
                                         Some(connection_result),
                                     )
-                                        .await
+                                    .await
                                 }
                                 Err(error) => {
                                     trace!("Failed to connect to '{}': '{:?}'", peer_ip, error);
@@ -595,7 +595,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
                             self.connected_nonces().await,
                             None,
                         )
-                            .await;
+                        .await;
                     }
                 }
             }
@@ -668,7 +668,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
     /// This method skips adding any given peers if the combined size exceeds the threshold,
     /// as the peer providing this list could be subverting the protocol.
     ///
-    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item=&'a SocketAddr> + IntoIterator>(&self, peers: T) {
+    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item = &'a SocketAddr> + IntoIterator>(&self, peers: T) {
         // Acquire the candidate peers write lock.
         let mut candidate_peers = self.candidate_peers.write().await;
         // Ensure the combined number of peers does not surpass the threshold.
@@ -734,9 +734,9 @@ impl<N: Network, E: Environment> Peers<N, E> {
     async fn propagate_pool_server(&self, message: Message<N, E>) {
         for peer in self.connected_peers().await.iter() {
             if self.pool_server_peers.read().await.contains(peer) {
-                self.send(*peer,message.clone()).await;
+                self.send(*peer, message.clone()).await;
             }
-        };
+        }
     }
 
     ///

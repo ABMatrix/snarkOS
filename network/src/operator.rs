@@ -188,8 +188,10 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         operator.known_nonces.write().await.clear();
 
                                         // Route a `PoolRequest` to the pools.
-                                        let pool_message = Message::PoolRequest(BASE_SHARE_DIFFICULTY,Data::Object(block_template.clone()));
-                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await {
+                                        let pool_message =
+                                            Message::PoolRequest(BASE_SHARE_DIFFICULTY, Data::Object(block_template.clone()));
+                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
+                                        {
                                             warn!("Failed to propagate PoolRequest: {}", error);
                                         }
                                     }
