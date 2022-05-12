@@ -67,6 +67,8 @@ pub enum PeersRequest<N: Network, E: Environment> {
     Heartbeat(LedgerReader<N>, LedgerRouter<N>, OperatorRouter<N>, ProverRouter<N>),
     /// MessagePropagate := (peer_ip, message)
     MessagePropagate(SocketAddr, Message<N, E>),
+    /// MessagePropagatePoolServer := (message)
+    MessagePropagatePoolServer(Message<N, E>),
     /// MessageSend := (peer_ip, message)
     MessageSend(SocketAddr, Message<N, E>),
     /// PeerConnecting := (stream, peer_ip, ledger_reader, ledger_router, operator_router, prover_router)
@@ -110,7 +112,7 @@ pub struct Peers<N: Network, E: Environment> {
     /// The set of restricted peer IPs.
     restricted_peers: RwLock<HashMap<SocketAddr, Instant>>,
     /// The set of poolserver peer IPs.
-    poolserver_peers: RwLock<HashSet<SocketAddr>>,
+    pool_server_peers: RwLock<HashSet<SocketAddr>>,
     /// The map of peers to their first-seen port number, number of attempts, and timestamp of the last inbound connection request.
     seen_inbound_connections: RwLock<HashMap<SocketAddr, ((u16, u32), SystemTime)>>,
     /// The map of peers to the timestamp of their last outbound connection request.
@@ -139,7 +141,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
             connected_peers: Default::default(),
             candidate_peers: Default::default(),
             restricted_peers: Default::default(),
-            poolserver_peers: Default::default(),
+            pool_server_peers: Default::default(),
             seen_inbound_connections: Default::default(),
             seen_outbound_connections: Default::default(),
         });
@@ -219,7 +221,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
     /// Returns a set of the peers of poolservers.
     ///
     pub async fn get_poolservers(&self) -> HashSet<SocketAddr> {
-        self.poolserver_peers.read().await.clone()
+        self.pool_server_peers.read().await.clone()
     }
 
     ///
@@ -341,7 +343,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
                                         self.connected_nonces().await,
                                         Some(connection_result),
                                     )
-                                    .await
+                                        .await
                                 }
                                 Err(error) => {
                                     trace!("Failed to connect to '{}': '{:?}'", peer_ip, error);
@@ -513,6 +515,9 @@ impl<N: Network, E: Environment> Peers<N, E> {
             PeersRequest::MessagePropagate(sender, message) => {
                 self.propagate(sender, message).await;
             }
+            PeersRequest::MessagePropagatePoolServer(message) => {
+                self.propagate_pool_server(message).await;
+            }
             PeersRequest::MessageSend(sender, message) => {
                 self.send(sender, message).await;
             }
@@ -590,7 +595,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
                             self.connected_nonces().await,
                             None,
                         )
-                        .await;
+                            .await;
                     }
                 }
             }
@@ -610,7 +615,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
             }
             PeersRequest::PeerIsPoolServer(peer_ip) => {
                 // Add an entry for this `Peer` in the pool server peers.
-                self.poolserver_peers.write().await.insert(peer_ip);
+                self.pool_server_peers.write().await.insert(peer_ip);
             }
             PeersRequest::PeerDisconnected(peer_ip) => {
                 // Remove an entry for this `Peer` in the connected peers, if it exists.
@@ -663,7 +668,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
     /// This method skips adding any given peers if the combined size exceeds the threshold,
     /// as the peer providing this list could be subverting the protocol.
     ///
-    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item = &'a SocketAddr> + IntoIterator>(&self, peers: T) {
+    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item=&'a SocketAddr> + IntoIterator>(&self, peers: T) {
         // Acquire the candidate peers write lock.
         let mut candidate_peers = self.candidate_peers.write().await;
         // Ensure the combined number of peers does not surpass the threshold.
@@ -721,6 +726,17 @@ impl<N: Network, E: Environment> Peers<N, E> {
         {
             self.send(peer, message.clone()).await;
         }
+    }
+
+    ///
+    /// Sends the given message to every connected pool server, excluding the sender.
+    ///
+    async fn propagate_pool_server(&self, message: Message<N, E>) {
+        for peer in self.connected_peers().await.iter() {
+            if self.pool_server_peers.read().await.contains(peer) {
+                self.send(*peer,message.clone()).await;
+            }
+        };
     }
 
     ///

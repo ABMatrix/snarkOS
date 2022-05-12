@@ -136,6 +136,8 @@ pub enum Message<N: Network, E: Environment> {
     PoolRequest(u64, Data<BlockTemplate<N>>),
     /// PoolResponse := (address, nonce, proof)
     PoolResponse(Address<N>, N::PoSWNonce, Data<PoSWProof<N>>),
+    /// NewBlockTemplate := (block_template)
+    NewBlockTemplate(Data<BlockTemplate<N>>),
     /// Unused
     #[allow(unused)]
     Unused(PhantomData<E>),
@@ -160,6 +162,7 @@ impl<N: Network, E: Environment> Message<N, E> {
             Self::PoolRegister(..) => "PoolRegister",
             Self::PoolRequest(..) => "PoolRequest",
             Self::PoolResponse(..) => "PoolResponse",
+            Self::NewBlockTemplate(..) => "NewBlockTemplate",
             Self::Unused(..) => "Unused",
         }
     }
@@ -182,6 +185,7 @@ impl<N: Network, E: Environment> Message<N, E> {
             Self::PoolRegister(..) => 11,
             Self::PoolRequest(..) => 12,
             Self::PoolResponse(..) => 13,
+            Self::NewBlockTemplate(..) => 100,
             Self::Unused(..) => 14,
         }
     }
@@ -237,6 +241,7 @@ impl<N: Network, E: Environment> Message<N, E> {
                 bincode::serialize_into(&mut *writer, nonce)?;
                 proof.serialize_blocking_into(writer)
             }
+            Self::NewBlockTemplate(block_template) => block_template.serialize_blocking_into(writer),
             Self::Unused(_) => Ok(()),
         }
     }
@@ -326,6 +331,7 @@ impl<N: Network, E: Environment> Message<N, E> {
                 let mut reader = bytes.reader();
                 Self::PoolRequest(bincode::deserialize_from(&mut reader)?, Data::Buffer(reader.into_inner().freeze()))
             }
+            100 => Self::NewBlockTemplate(Data::Buffer(bytes.freeze())),
             13 => {
                 let mut reader = bytes.reader();
                 Self::PoolResponse(

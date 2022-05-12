@@ -115,7 +115,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
             known_nonces: Default::default(),
             operator_router,
             memory_pool,
-            peers_router,
+            peers_router: peers_router.clone(),
             ledger_reader,
             ledger_router,
             prover_router,
@@ -183,9 +183,15 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                 match result {
                                     Ok(Ok(block_template)) => {
                                         // Acquire the write lock to update the block template.
-                                        *operator.block_template.write().await = Some(block_template);
+                                        *operator.block_template.write().await = Some(block_template.clone());
                                         // Clear the set of known nonces.
                                         operator.known_nonces.write().await.clear();
+
+                                        // Route a `PoolRequest` to the pools.
+                                        let pool_message = Message::PoolRequest(BASE_SHARE_DIFFICULTY,Data::Object(block_template.clone()));
+                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await {
+                                            warn!("Failed to propagate PoolRequest: {}", error);
+                                        }
                                     }
                                     Ok(Err(error_message)) => error!("{}", error_message),
                                     Err(error) => error!("{}", error),
