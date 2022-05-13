@@ -247,7 +247,7 @@ impl<N: Network, E: Environment> Peer<N, E> {
                             bail!("Already connected to a peer with nonce {}", peer_nonce);
                         }
                         // Verify the listener port.
-                        if node_type != NodeType::Prover && node_type != NodeType::PoolServer && peer_ip.port() != listener_port {
+                        if node_type != NodeType::PoolServer && peer_ip.port() != listener_port {
                             // Update the peer IP to the listener port.
                             peer_ip.set_port(listener_port);
 
