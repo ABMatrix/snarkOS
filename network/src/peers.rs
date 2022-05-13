@@ -220,7 +220,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
     ///
     /// Returns a set of the peers of poolservers.
     ///
-    pub async fn get_poolservers(&self) -> HashSet<SocketAddr> {
+    pub async fn get_pool_servers(&self) -> HashSet<SocketAddr> {
         self.pool_server_peers.read().await.clone()
     }
 

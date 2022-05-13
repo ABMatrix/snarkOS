@@ -110,10 +110,7 @@ impl Node {
                 (NodeType::Prover, false) => self.start_server::<CurrentNetwork, Prover<CurrentNetwork>>(&self.prover).await,
                 (NodeType::Client, true) => self.start_server::<CurrentNetwork, ClientTrial<CurrentNetwork>>(&None).await,
                 (NodeType::Miner, true) => self.start_server::<CurrentNetwork, MinerTrial<CurrentNetwork>>(&self.miner).await,
-                (NodeType::Operator, true) => {
-                    self.start_server::<CurrentNetwork, OperatorTrial<CurrentNetwork>>(&self.operator)
-                        .await
-                }
+                (NodeType::Operator, true) => { self.start_server::<CurrentNetwork, OperatorTrial<CurrentNetwork>>(&self.operator).await }
                 (NodeType::Prover, true) => self.start_server::<CurrentNetwork, ProverTrial<CurrentNetwork>>(&self.prover).await,
                 (NodeType::Sync, _) => self.start_server::<CurrentNetwork, SyncNode<CurrentNetwork>>(&None).await,
                 _ => panic!("Unsupported node configuration"),

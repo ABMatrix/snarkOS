@@ -191,7 +191,8 @@ impl<N: Network, E: Environment> Operator<N, E> {
 
                                         // Route a `PoolRequest` to the pools.
                                         let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
-                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await {
+                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
+                                        {
                                             warn!("Failed to propagate PoolRequest: {}", error);
                                         }
                                     }
