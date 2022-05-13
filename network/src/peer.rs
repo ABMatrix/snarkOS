@@ -796,6 +796,17 @@ impl<N: Network, E: Environment> Peer<N, E> {
                                         warn!("[PoolResponse] could not deserialize proof");
                                     }
                                 }
+                                Message::PoolBlock(nonce, proof) => {
+                                    if E::NODE_TYPE != NodeType::Operator {
+                                        trace!("Skipping 'PoolBlock' from {}", peer_ip);
+                                    } else if let Ok(proof) = proof.deserialize().await {
+                                        if let Err(error) = operator_router.send(OperatorRequest::PoolBlock(nonce, proof)).await {
+                                            warn!("[PoolBlock] {}", error);
+                                        }
+                                    } else {
+                                        warn!("[PoolBlock] could not deserialize proof");
+                                    }
+                                }
                                 Message::Unused(_) => break, // Peer is not following the protocol.
                             }
                         }

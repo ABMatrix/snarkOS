@@ -111,7 +111,7 @@ pub struct Peers<N: Network, E: Environment> {
     candidate_peers: RwLock<HashSet<SocketAddr>>,
     /// The set of restricted peer IPs.
     restricted_peers: RwLock<HashMap<SocketAddr, Instant>>,
-    /// The set of poolserver peer IPs.
+    /// The set of pool server peer IPs.
     pool_server_peers: RwLock<HashSet<SocketAddr>>,
     /// The map of peers to their first-seen port number, number of attempts, and timestamp of the last inbound connection request.
     seen_inbound_connections: RwLock<HashMap<SocketAddr, ((u16, u32), SystemTime)>>,

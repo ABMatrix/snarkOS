@@ -52,6 +52,8 @@ pub enum OperatorRequest<N: Network> {
     PoolRegister(SocketAddr, Address<N>),
     /// PoolResponse := (peer_ip, prover_address, nonce, proof)
     PoolResponse(SocketAddr, Address<N>, N::PoSWNonce, PoSWProof<N>),
+    /// PoolBlock := (nonce, proof)
+    PoolBlock(N::PoSWNonce, PoSWProof<N>),
 }
 
 /// The predefined base share difficulty.
@@ -177,7 +179,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         }
                                     })
                                 })
-                                .await;
+                                    .await;
 
                                 // Update the block template.
                                 match result {
@@ -326,23 +328,58 @@ impl<N: Network, E: Environment> Operator<N, E> {
                     // If the block has satisfactory difficulty and is valid, proceed to broadcast it.
                     let previous_block_hash = block_template.previous_block_hash();
                     let transactions = block_template.transactions().clone();
-                    if let Ok(block_header) = BlockHeader::<N>::from(
+                    self.record_unconfirmed_block(
+                        previous_block_hash,
+                        transactions,
                         block_template.previous_ledger_root(),
                         block_template.transactions().transactions_root(),
                         BlockHeaderMetadata::new(&block_template),
                         nonce,
-                        proof,
-                    ) {
-                        if let Ok(block) = Block::from(previous_block_hash, block_header, transactions) {
-                            info!("Operator has found unconfirmed block {} ({})", block.height(), block.hash());
-                            let request = LedgerRequest::UnconfirmedBlock(self.local_ip, block, self.prover_router.clone());
-                            if let Err(error) = self.ledger_router.send(request).await {
-                                warn!("Failed to broadcast mined block - {}", error);
-                            }
-                        }
-                    }
+                        proof).await
                 } else {
                     warn!("[PoolResponse] No current block template exists");
+                }
+            }
+            OperatorRequest::PoolBlock(nonce, proof) => {
+                if let Some(block_template) = self.block_template.read().await.clone() {
+                    let previous_block_hash = block_template.previous_block_hash();
+                    let transactions = block_template.transactions().clone();
+                    self.record_unconfirmed_block(
+                        previous_block_hash,
+                        transactions,
+                        block_template.previous_ledger_root(),
+                        block_template.transactions().transactions_root(),
+                        BlockHeaderMetadata::new(&block_template),
+                        nonce,
+                        proof).await
+                } else {
+                    warn!("[PoolBlock] No current block template exists");
+                }
+            }
+        }
+    }
+
+    async fn record_unconfirmed_block(&self,
+                                previous_block_hash: <N as Network>::BlockHash,
+                                transactions: Transactions<N>,
+                                previous_ledger_root: N::LedgerRoot,
+                                transactions_root: N::TransactionsRoot,
+                                metadata: BlockHeaderMetadata,
+                                nonce: N::PoSWNonce,
+                                proof: PoSWProof<N>,
+    ) {
+        if let Ok(block_header) = BlockHeader::<N>::from(
+            previous_ledger_root,
+            transactions_root,
+            metadata,
+            nonce,
+            proof,
+        ) {
+            if let Ok(block) = Block::from(previous_block_hash, block_header, transactions) {
+                info!("Operator has found unconfirmed block {} ({})", block.height(), block.hash());
+                let request = LedgerRequest::UnconfirmedBlock(self.local_ip, block, self.prover_router.clone());
+                if let Err(error) = self.ledger_router.send(request).await {
+                    warn!("Failed to broadcast mined block - {}", error);
                 }
             }
         }

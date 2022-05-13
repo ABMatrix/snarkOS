@@ -138,6 +138,8 @@ pub enum Message<N: Network, E: Environment> {
     PoolResponse(Address<N>, N::PoSWNonce, Data<PoSWProof<N>>),
     /// NewBlockTemplate := (block_template)
     NewBlockTemplate(Data<BlockTemplate<N>>),
+    /// PoolBlock := (nonce, proof)
+    PoolBlock(N::PoSWNonce, Data<PoSWProof<N>>),
     /// Unused
     #[allow(unused)]
     Unused(PhantomData<E>),
@@ -163,6 +165,7 @@ impl<N: Network, E: Environment> Message<N, E> {
             Self::PoolRequest(..) => "PoolRequest",
             Self::PoolResponse(..) => "PoolResponse",
             Self::NewBlockTemplate(..) => "NewBlockTemplate",
+            Self::PoolBlock(..) => "PoolBlock",
             Self::Unused(..) => "Unused",
         }
     }
@@ -186,6 +189,7 @@ impl<N: Network, E: Environment> Message<N, E> {
             Self::PoolRequest(..) => 12,
             Self::PoolResponse(..) => 13,
             Self::NewBlockTemplate(..) => 100,
+            Self::PoolBlock(..) => 101,
             Self::Unused(..) => 14,
         }
     }
@@ -242,6 +246,10 @@ impl<N: Network, E: Environment> Message<N, E> {
                 proof.serialize_blocking_into(writer)
             }
             Self::NewBlockTemplate(block_template) => block_template.serialize_blocking_into(writer),
+            Self::PoolBlock(nonce, proof) => {
+                bincode::serialize_into(&mut *writer, nonce)?;
+                proof.serialize_blocking_into(writer)
+            }
             Self::Unused(_) => Ok(()),
         }
     }
@@ -331,7 +339,11 @@ impl<N: Network, E: Environment> Message<N, E> {
                 let mut reader = bytes.reader();
                 Self::PoolRequest(bincode::deserialize_from(&mut reader)?, Data::Buffer(reader.into_inner().freeze()))
             }
-            100 => Self::NewBlockTemplate(Data::Buffer(bytes.freeze())),
+            100 => Self::NewBlockTemplate(Data::Buffer(bytes.reader().into_inner().freeze())),
+            101 => {
+                let mut reader = bytes.reader();
+                Self::PoolBlock(bincode::deserialize_from(&mut reader)?, Data::Buffer(reader.into_inner().freeze()))
+            }
             13 => {
                 let mut reader = bytes.reader();
                 Self::PoolResponse(
