@@ -179,7 +179,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         }
                                     })
                                 })
-                                    .await;
+                                .await;
 
                                 // Update the block template.
                                 match result {
@@ -190,10 +190,8 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         operator.known_nonces.write().await.clear();
 
                                         // Route a `PoolRequest` to the pools.
-                                        let pool_message =
-                                            Message::PoolRequest(BASE_SHARE_DIFFICULTY, Data::Object(block_template.clone()));
-                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
-                                        {
+                                        let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
+                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await {
                                             warn!("Failed to propagate PoolRequest: {}", error);
                                         }
                                     }
@@ -335,7 +333,9 @@ impl<N: Network, E: Environment> Operator<N, E> {
                         block_template.transactions().transactions_root(),
                         BlockHeaderMetadata::new(&block_template),
                         nonce,
-                        proof).await
+                        proof,
+                    )
+                    .await
                 } else {
                     warn!("[PoolResponse] No current block template exists");
                 }
@@ -351,7 +351,9 @@ impl<N: Network, E: Environment> Operator<N, E> {
                         block_template.transactions().transactions_root(),
                         BlockHeaderMetadata::new(&block_template),
                         nonce,
-                        proof).await
+                        proof,
+                    )
+                    .await
                 } else {
                     warn!("[PoolBlock] No current block template exists");
                 }
@@ -359,22 +361,17 @@ impl<N: Network, E: Environment> Operator<N, E> {
         }
     }
 
-    async fn record_unconfirmed_block(&self,
-                                previous_block_hash: <N as Network>::BlockHash,
-                                transactions: Transactions<N>,
-                                previous_ledger_root: N::LedgerRoot,
-                                transactions_root: N::TransactionsRoot,
-                                metadata: BlockHeaderMetadata,
-                                nonce: N::PoSWNonce,
-                                proof: PoSWProof<N>,
+    async fn record_unconfirmed_block(
+        &self,
+        previous_block_hash: <N as Network>::BlockHash,
+        transactions: Transactions<N>,
+        previous_ledger_root: N::LedgerRoot,
+        transactions_root: N::TransactionsRoot,
+        metadata: BlockHeaderMetadata,
+        nonce: N::PoSWNonce,
+        proof: PoSWProof<N>,
     ) {
-        if let Ok(block_header) = BlockHeader::<N>::from(
-            previous_ledger_root,
-            transactions_root,
-            metadata,
-            nonce,
-            proof,
-        ) {
+        if let Ok(block_header) = BlockHeader::<N>::from(previous_ledger_root, transactions_root, metadata, nonce, proof) {
             if let Ok(block) = Block::from(previous_block_hash, block_header, transactions) {
                 info!("Operator has found unconfirmed block {} ({})", block.height(), block.hash());
                 let request = LedgerRequest::UnconfirmedBlock(self.local_ip, block, self.prover_router.clone());
