@@ -36,6 +36,7 @@ use tokio::{
     sync::{mpsc, oneshot, RwLock},
     task,
 };
+use snarkos_environment::helpers::State::Ready;
 
 /// Shorthand for the parent half of the `Operator` message channel.
 pub type OperatorRouter<N> = mpsc::Sender<OperatorRequest<N>>;
@@ -189,12 +190,15 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         // Clear the set of known nonces.
                                         operator.known_nonces.write().await.clear();
 
-                                        // Route a `PoolRequest` to the pools.
-                                        let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
-                                        if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
-                                        {
-                                            warn!("Failed to propagate PoolRequest: {}", error);
+                                        if E::status().get() == Ready {
+                                            // Route a `PoolRequest` to the pools.
+                                            let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
+                                            if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
+                                            {
+                                                warn!("Failed to propagate PoolRequest: {}", error);
+                                            }
                                         }
+
                                     }
                                     Ok(Err(error_message)) => error!("{}", error_message),
                                     Err(error) => error!("{}", error),
