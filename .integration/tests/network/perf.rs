@@ -18,9 +18,7 @@ use pea2pea::{protocols::Writing, Pea2Pea};
 use snarkos_environment::{
     helpers::{NodeType, State},
     network::{Data, Message},
-    Client,
-    CurrentNetwork,
-    Environment,
+    Client, CurrentNetwork, Environment,
 };
 use snarkos_integration::{wait_until, ClientNode, TestNode};
 use snarkvm::dpc::traits::network::Network;

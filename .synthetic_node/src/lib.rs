@@ -17,9 +17,7 @@
 use snarkos_environment::{
     helpers::{NodeType, State},
     network::{Data, DisconnectReason, Message, MessageCodec},
-    Client,
-    CurrentNetwork,
-    Environment,
+    Client, CurrentNetwork, Environment,
 };
 use snarkvm::traits::Network;
 
@@ -27,9 +25,7 @@ use futures_util::{sink::SinkExt, TryStreamExt};
 use parking_lot::RwLock;
 use pea2pea::{
     protocols::{Disconnect, Handshake, Writing},
-    Connection,
-    Node as Pea2PeaNode,
-    Pea2Pea,
+    Connection, Node as Pea2PeaNode, Pea2Pea,
 };
 use rand::{thread_rng, Rng};
 use std::{collections::HashMap, io, net::SocketAddr, sync::Arc};
@@ -202,13 +198,16 @@ impl Handshake for SynthNode {
                 locked_addr_map.insert(peer_addr, peer_listening_addr);
 
                 // Register the newly connected snarkOS peer.
-                locked_peers.insert(peer_listening_addr, ClientPeer {
-                    connected_addr: peer_addr,
-                    nonce: peer_nonce,
-                    node_type: peer_node_type,
-                    cumulative_weight,
-                    peer_version,
-                });
+                locked_peers.insert(
+                    peer_listening_addr,
+                    ClientPeer {
+                        connected_addr: peer_addr,
+                        nonce: peer_nonce,
+                        node_type: peer_node_type,
+                        cumulative_weight,
+                        peer_version,
+                    },
+                );
 
                 drop(locked_addr_map);
                 drop(locked_peers);

@@ -25,6 +25,7 @@ use snarkvm::dpc::{prelude::*, PoSWProof};
 
 use anyhow::Result;
 use rand::thread_rng;
+use snarkos_environment::helpers::State::Ready;
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -36,7 +37,6 @@ use tokio::{
     sync::{mpsc, oneshot, RwLock},
     task,
 };
-use snarkos_environment::helpers::State::Ready;
 
 /// Shorthand for the parent half of the `Operator` message channel.
 pub type OperatorRouter<N> = mpsc::Sender<OperatorRequest<N>>;
@@ -193,12 +193,12 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         if E::status().get() == Ready {
                                             // Route a `PoolRequest` to the pools.
                                             let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
-                                            if let Err(error) = peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
+                                            if let Err(error) =
+                                                peers_router.send(PeersRequest::MessagePropagatePoolServer(pool_message)).await
                                             {
                                                 warn!("Failed to propagate PoolRequest: {}", error);
                                             }
                                         }
-
                                     }
                                     Ok(Err(error_message)) => error!("{}", error_message),
                                     Err(error) => error!("{}", error),

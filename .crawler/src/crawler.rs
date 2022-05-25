@@ -20,9 +20,7 @@ use crate::{constants::*, known_network::KnownNetwork, metrics::NetworkMetrics};
 use snarkos_environment::{
     helpers::{BlockLocators, NodeType, State},
     network::Data,
-    Client,
-    CurrentNetwork,
-    Environment,
+    Client, CurrentNetwork, Environment,
 };
 use snarkos_synthetic_node::{ClientMessage, SynthNode};
 use snarkvm::traits::Network;
@@ -31,9 +29,7 @@ use bytes::{Buf, BytesMut};
 use clap::Parser;
 use pea2pea::{
     protocols::{Disconnect, Handshake, Reading, Writing},
-    Config,
-    Node as Pea2PeaNode,
-    Pea2Pea,
+    Config, Node as Pea2PeaNode, Pea2Pea,
 };
 use rand::{rngs::SmallRng, seq::IteratorRandom, SeedableRng};
 use std::{io, marker::PhantomData, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};

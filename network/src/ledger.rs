@@ -16,10 +16,7 @@
 
 use crate::{
     helpers::{block_requests::*, BlockRequest, CircularMap},
-    PeersRequest,
-    PeersRouter,
-    ProverRequest,
-    ProverRouter,
+    PeersRequest, PeersRouter, ProverRequest, ProverRouter,
 };
 use snarkos_environment::{
     helpers::{block_locators::*, NodeType, State},

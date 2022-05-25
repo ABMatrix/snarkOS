@@ -17,8 +17,7 @@
 use snarkos_environment::CurrentNetwork;
 use snarkos_storage::{
     storage::{rocksdb::RocksDB, Map, MapId, Storage},
-    LedgerState,
-    Metadata,
+    LedgerState, Metadata,
 };
 use snarkvm::{prelude::BlockHeader, traits::Network};
 

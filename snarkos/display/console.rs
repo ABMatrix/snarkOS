@@ -16,8 +16,7 @@
 
 use crate::{
     display::{logs::Logs, overview::Overview},
-    initialize_logger,
-    Server,
+    initialize_logger, Server,
 };
 use snarkos_environment::Environment;
 use snarkvm::dpc::Network;
@@ -29,8 +28,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
-    io,
-    thread,
+    io, thread,
     time::{Duration, Instant},
 };
 use tokio::sync::mpsc;
@@ -40,8 +38,7 @@ use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, Tabs},
-    Frame,
-    Terminal,
+    Frame, Terminal,
 };
 
 pub struct TabsState<'a> {

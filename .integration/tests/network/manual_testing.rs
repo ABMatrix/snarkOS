@@ -19,8 +19,7 @@ use snarkos_integration::TestNode;
 
 use pea2pea::{
     protocols::{Handshake, Reading, Writing},
-    Config,
-    Node as Pea2PeaNode,
+    Config, Node as Pea2PeaNode,
 };
 use std::net::{IpAddr, Ipv4Addr};
 

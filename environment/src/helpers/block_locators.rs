@@ -27,10 +27,7 @@ use snarkvm::{
         fmt,
         io::{Read, Result as IoResult, Write},
         str::FromStr,
-        FromBytes,
-        FromBytesDeserializer,
-        ToBytes,
-        ToBytesSerializer,
+        FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer,
     },
 };
 

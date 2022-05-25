@@ -234,11 +234,14 @@ pub(crate) fn handle_block_requests<N: Network, E: Environment>(
     let start_block_height = latest_common_ancestor + 1;
     let end_block_height = start_block_height + number_of_block_requests - 1;
 
-    BlockRequestHandler::Proceed(case, BlockRequestHandlerProceed {
-        start_block_height,
-        end_block_height,
-        ledger_is_on_fork,
-    })
+    BlockRequestHandler::Proceed(
+        case,
+        BlockRequestHandlerProceed {
+            start_block_height,
+            end_block_height,
+            ledger_is_on_fork,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -409,11 +412,14 @@ mod tests {
             // Validate the output.
             assert_eq!(
                 result,
-                BlockRequestHandler::Proceed(Case::TwoB, BlockRequestHandlerProceed {
-                    start_block_height: expected_start_block_height,
-                    end_block_height: expected_end_block_height,
-                    ledger_is_on_fork: false,
-                })
+                BlockRequestHandler::Proceed(
+                    Case::TwoB,
+                    BlockRequestHandlerProceed {
+                        start_block_height: expected_start_block_height,
+                        end_block_height: expected_end_block_height,
+                        ledger_is_on_fork: false,
+                    }
+                )
             );
         }
     }
@@ -466,11 +472,14 @@ mod tests {
             // Validate the output.
             assert_eq!(
                 result,
-                BlockRequestHandler::Proceed(Case::TwoCA, BlockRequestHandlerProceed {
-                    start_block_height: expected_start_block_height,
-                    end_block_height: expected_end_block_height,
-                    ledger_is_on_fork: true,
-                })
+                BlockRequestHandler::Proceed(
+                    Case::TwoCA,
+                    BlockRequestHandlerProceed {
+                        start_block_height: expected_start_block_height,
+                        end_block_height: expected_end_block_height,
+                        ledger_is_on_fork: true,
+                    }
+                )
             );
         }
     }
@@ -572,11 +581,14 @@ mod tests {
             // Validate the output.
             assert_eq!(
                 result,
-                BlockRequestHandler::Proceed(Case::TwoCBB, BlockRequestHandlerProceed {
-                    start_block_height: expected_start_block_height,
-                    end_block_height: expected_end_block_height,
-                    ledger_is_on_fork: true,
-                })
+                BlockRequestHandler::Proceed(
+                    Case::TwoCBB,
+                    BlockRequestHandlerProceed {
+                        start_block_height: expected_start_block_height,
+                        end_block_height: expected_end_block_height,
+                        ledger_is_on_fork: true,
+                    }
+                )
             );
         }
     }

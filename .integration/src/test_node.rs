@@ -17,18 +17,14 @@
 use snarkos_environment::{
     helpers::{BlockLocators, NodeType, State},
     network::{Data, MessageCodec},
-    Client,
-    CurrentNetwork,
-    Environment,
+    Client, CurrentNetwork, Environment,
 };
 use snarkos_synthetic_node::{ClientMessage, ClientState, SynthNode, MAXIMUM_FORK_DEPTH, MESSAGE_VERSION};
 use snarkvm::traits::Network;
 
 use pea2pea::{
     protocols::{Disconnect, Handshake, Reading, Writing},
-    Config,
-    Node as Pea2PeaNode,
-    Pea2Pea,
+    Config, Node as Pea2PeaNode, Pea2Pea,
 };
 use std::{
     io,

@@ -15,15 +15,7 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-    ConnectionResult,
-    LedgerReader,
-    LedgerRequest,
-    LedgerRouter,
-    OperatorRequest,
-    OperatorRouter,
-    PeersRequest,
-    PeersRouter,
-    ProverRequest,
+    ConnectionResult, LedgerReader, LedgerRequest, LedgerRouter, OperatorRequest, OperatorRouter, PeersRequest, PeersRouter, ProverRequest,
     ProverRouter,
 };
 use snarkos_environment::{

@@ -17,8 +17,7 @@
 use metrics::Key;
 use metrics_util::{
     debugging::{DebugValue, Snapshotter},
-    CompositeKey,
-    MetricKind,
+    CompositeKey, MetricKind,
 };
 
 pub struct TestMetrics(Snapshotter);

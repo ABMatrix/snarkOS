@@ -187,83 +187,84 @@ impl Crawler {
                 .await?;
 
             let node_centrality_stmt = transaction
-                .prepare_typed("INSERT INTO node_centrality VALUES ($1, $2, $3, $4, $5, $6);", &[
-                    Type::INET,
-                    Type::INT4,
-                    Type::TIMESTAMPTZ,
-                    Type::INT4,
-                    Type::FLOAT4,
-                    Type::FLOAT4,
-                ])
+                .prepare_typed(
+                    "INSERT INTO node_centrality VALUES ($1, $2, $3, $4, $5, $6);",
+                    &[Type::INET, Type::INT4, Type::TIMESTAMPTZ, Type::INT4, Type::FLOAT4, Type::FLOAT4],
+                )
                 .await?;
 
             for (addr, meta, nc) in metrics.per_node {
                 transaction
-                    .execute(&node_state_stmt, &[
-                        &addr.ip(),
-                        &(addr.port() as i32),
-                        &meta.timestamp,
-                        &meta.state.as_ref().map(|s| s.node_type as i16),
-                        &meta.state.as_ref().map(|s| s.version as i32),
-                        &meta.state.as_ref().map(|s| s.state as i16),
-                        &meta.state.as_ref().map(|s| s.height as i64),
-                        &meta.handshake_time.map(|t| t.whole_milliseconds() as i32),
-                    ])
+                    .execute(
+                        &node_state_stmt,
+                        &[
+                            &addr.ip(),
+                            &(addr.port() as i32),
+                            &meta.timestamp,
+                            &meta.state.as_ref().map(|s| s.node_type as i16),
+                            &meta.state.as_ref().map(|s| s.version as i32),
+                            &meta.state.as_ref().map(|s| s.state as i16),
+                            &meta.state.as_ref().map(|s| s.height as i64),
+                            &meta.handshake_time.map(|t| t.whole_milliseconds() as i32),
+                        ],
+                    )
                     .await?;
 
                 transaction
-                    .execute(&node_centrality_stmt, &[
-                        &addr.ip(),
-                        &(addr.port() as i32),
-                        &timestamp,
-                        &(nc.degree_centrality as i32),
-                        &(nc.eigenvector_centrality as f32),
-                        &(nc.fiedler_value as f32),
-                    ])
+                    .execute(
+                        &node_centrality_stmt,
+                        &[
+                            &addr.ip(),
+                            &(addr.port() as i32),
+                            &timestamp,
+                            &(nc.degree_centrality as i32),
+                            &(nc.eigenvector_centrality as f32),
+                            &(nc.fiedler_value as f32),
+                        ],
+                    )
                     .await?;
             }
 
             let network_stmt = transaction
-                .prepare_typed("INSERT INTO network VALUES ($1, $2, $3, $4, $5, $6);", &[
-                    Type::TIMESTAMPTZ,
-                    Type::INT4,
-                    Type::INT4,
-                    Type::FLOAT4,
-                    Type::FLOAT4,
-                    Type::INT4,
-                ])
+                .prepare_typed(
+                    "INSERT INTO network VALUES ($1, $2, $3, $4, $5, $6);",
+                    &[Type::TIMESTAMPTZ, Type::INT4, Type::INT4, Type::FLOAT4, Type::FLOAT4, Type::INT4],
+                )
                 .await?;
 
             transaction
-                .execute(&network_stmt, &[
-                    &timestamp,
-                    &(metrics.node_count as i32),
-                    &(metrics.connection_count as i32),
-                    &(metrics.density as f32),
-                    &(metrics.algebraic_connectivity as f32),
-                    &(metrics.degree_centrality_delta as i32),
-                ])
+                .execute(
+                    &network_stmt,
+                    &[
+                        &timestamp,
+                        &(metrics.node_count as i32),
+                        &(metrics.connection_count as i32),
+                        &(metrics.density as f32),
+                        &(metrics.algebraic_connectivity as f32),
+                        &(metrics.degree_centrality_delta as i32),
+                    ],
+                )
                 .await?;
 
             let connections_stmt = transaction
-                .prepare_typed("INSERT INTO connections VALUES ($1, $2, $3, $4, $5);", &[
-                    Type::TIMESTAMPTZ,
-                    Type::INET,
-                    Type::INT4,
-                    Type::INET,
-                    Type::INT4,
-                ])
+                .prepare_typed(
+                    "INSERT INTO connections VALUES ($1, $2, $3, $4, $5);",
+                    &[Type::TIMESTAMPTZ, Type::INET, Type::INT4, Type::INET, Type::INT4],
+                )
                 .await?;
 
             for conn in connections {
                 transaction
-                    .execute(&connections_stmt, &[
-                        &timestamp,
-                        &conn.source.ip(),
-                        &(conn.source.port() as i32),
-                        &conn.target.ip(),
-                        &(conn.target.port() as i32),
-                    ])
+                    .execute(
+                        &connections_stmt,
+                        &[
+                            &timestamp,
+                            &conn.source.ip(),
+                            &(conn.source.port() as i32),
+                            &conn.target.ip(),
+                            &(conn.target.port() as i32),
+                        ],
+                    )
                     .await?;
             }
 
