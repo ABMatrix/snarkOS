@@ -806,7 +806,7 @@ impl<N: Network, E: Environment> Peer<N, E> {
                                         trace!("Skipping 'PoolBlock' from {}", peer_ip);
                                     } else if let Ok(proof) = proof.deserialize().await {
 
-                                        if let Err(error) = state.operator().send(OperatorRequest::PoolBlock(nonce, proof)).await {
+                                        if let Err(error) = state.operator().router().send(OperatorRequest::PoolBlock(nonce, proof)).await {
                                             warn!("[PoolBlock] {}", error);
                                         }
                                     } else {

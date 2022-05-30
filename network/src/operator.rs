@@ -150,8 +150,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                         if E::status().get() == Ready {
                                             // Route a `PoolRequest` to the pools.
                                             let pool_message = Message::NewBlockTemplate(Data::Object(block_template));
-                                            if let Err(error) = self
-                                                .state
+                                            if let Err(error) = state
                                                 .peers()
                                                 .router()
                                                 .send(PeersRequest::MessagePropagatePoolServer(pool_message))
@@ -163,7 +162,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                                     }
                                     Ok(Err(error_message)) => {
                                         error!("{}", error_message)
-                                    },
+                                    }
                                     Err(error) => error!("{}", error),
                                 };
                             }
@@ -294,7 +293,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                     let transactions = block_template.transactions().clone();
                     self.record_unconfirmed_block(
                         previous_block_hash,
-                        transactions.transactions_root(),
+                        transactions,
                         block_template.previous_ledger_root(),
                         block_template.transactions().transactions_root(),
                         BlockHeaderMetadata::new(&block_template),
@@ -312,7 +311,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
                     let transactions = block_template.transactions().clone();
                     self.record_unconfirmed_block(
                         previous_block_hash,
-                        transactions.transactions_root(),
+                        transactions,
                         block_template.previous_ledger_root(),
                         block_template.transactions().transactions_root(),
                         BlockHeaderMetadata::new(&block_template),
@@ -340,7 +339,7 @@ impl<N: Network, E: Environment> Operator<N, E> {
         if let Ok(block_header) = BlockHeader::<N>::from(previous_ledger_root, transactions_root, metadata, nonce, proof) {
             if let Ok(block) = Block::from(previous_block_hash, block_header, transactions) {
                 info!("Operator has found unconfirmed block {} ({})", block.height(), block.hash());
-                let request = LedgerRequest::UnconfirmedBlock(self.local_ip, block, self.prover_router.clone());
+                let request = LedgerRequest::UnconfirmedBlock(self.state.local_ip, block);
                 if let Err(error) = self.state.ledger().router().send(request).await {
                     warn!("Failed to broadcast mined block - {}", error);
                 }

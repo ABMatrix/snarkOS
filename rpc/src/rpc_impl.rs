@@ -276,7 +276,7 @@ impl<N: Network, E: Environment> RpcFunctions<N> for RpcContext<N, E> {
     }
 
     async fn get_pool_servers(&self) -> Value {
-        let pool_servers = self.peers.get_pool_servers().await;
+        let pool_servers = self.state.peers().get_pool_servers().await;
         serde_json::json!(pool_servers)
     }
 }
