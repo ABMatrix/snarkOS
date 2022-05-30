@@ -205,9 +205,11 @@ fn test_get_block_locators() {
         let block_locators = ledger
             .get_block_locators(ledger.latest_block_height())
             .expect("Failed to get block locators");
-        assert!(ledger
-            .check_block_locators(&block_locators)
-            .expect("Failed to check block locators"));
+        assert!(
+            ledger
+                .check_block_locators(&block_locators)
+                .expect("Failed to check block locators")
+        );
     }
 }
 

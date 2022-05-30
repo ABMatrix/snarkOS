@@ -15,9 +15,11 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use snarkos_environment::{
-    helpers::{NodeType, State},
+    helpers::{NodeType, Status},
     network::{Data, DisconnectReason, Message, MessageCodec},
-    Client, CurrentNetwork, Environment,
+    Client,
+    CurrentNetwork,
+    Environment,
 };
 use snarkvm::traits::Network;
 
@@ -25,7 +27,9 @@ use futures_util::{sink::SinkExt, TryStreamExt};
 use parking_lot::RwLock;
 use pea2pea::{
     protocols::{Disconnect, Handshake, Writing},
-    Connection, Node as Pea2PeaNode, Pea2Pea,
+    Connection,
+    Node as Pea2PeaNode,
+    Pea2Pea,
 };
 use rand::{thread_rng, Rng};
 use std::{collections::HashMap, io, net::SocketAddr, sync::Arc};
@@ -41,7 +45,7 @@ pub const MAXIMUM_FORK_DEPTH: u32 = CurrentNetwork::ALEO_MAXIMUM_FORK_DEPTH;
 pub type ClientMessage = Message<CurrentNetwork, Client<CurrentNetwork>>;
 pub type ClientNonce = u64;
 
-/// The test node; it consists of a `Pea2PeaNode` that handles networking and `State`
+/// The test node; it consists of a `Pea2PeaNode` that handles networking and state
 /// that can be extended freely based on test requirements.
 #[derive(Clone)]
 pub struct SynthNode {
@@ -89,7 +93,7 @@ impl Pea2Pea for SynthNode {
 }
 
 impl SynthNode {
-    /// Creates a test node using the given `Pea2Pea` node and with the given `State`.
+    /// Creates a test node using the given `Pea2Pea` node and with the given `ClientState`.
     pub fn new(node: Pea2PeaNode, state: ClientState) -> Self {
         Self { node, state }
     }
@@ -134,7 +138,7 @@ impl Handshake for SynthNode {
             MESSAGE_VERSION,
             MAXIMUM_FORK_DEPTH,
             NodeType::Client,
-            State::Ready,
+            Status::Ready,
             own_ip.port(),
             self.state.local_nonce,
             0,
@@ -198,16 +202,13 @@ impl Handshake for SynthNode {
                 locked_addr_map.insert(peer_addr, peer_listening_addr);
 
                 // Register the newly connected snarkOS peer.
-                locked_peers.insert(
-                    peer_listening_addr,
-                    ClientPeer {
-                        connected_addr: peer_addr,
-                        nonce: peer_nonce,
-                        node_type: peer_node_type,
-                        cumulative_weight,
-                        peer_version,
-                    },
-                );
+                locked_peers.insert(peer_listening_addr, ClientPeer {
+                    connected_addr: peer_addr,
+                    nonce: peer_nonce,
+                    node_type: peer_node_type,
+                    cumulative_weight,
+                    peer_version,
+                });
 
                 drop(locked_addr_map);
                 drop(locked_peers);

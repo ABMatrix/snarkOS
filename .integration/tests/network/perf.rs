@@ -16,9 +16,11 @@
 
 use pea2pea::{protocols::Writing, Pea2Pea};
 use snarkos_environment::{
-    helpers::{NodeType, State},
+    helpers::{NodeType, Status},
     network::{Data, Message},
-    Client, CurrentNetwork, Environment,
+    Client,
+    CurrentNetwork,
+    Environment,
 };
 use snarkos_integration::{wait_until, ClientNode, TestNode};
 use snarkvm::dpc::traits::network::Network;
@@ -120,7 +122,7 @@ async fn measure_ping_time() {
         <Client<CurrentNetwork>>::MESSAGE_VERSION,
         CurrentNetwork::ALEO_MAXIMUM_FORK_DEPTH,
         NodeType::Client,
-        State::Ready,
+        Status::Ready,
         CurrentNetwork::genesis_block().hash(),
         Data::Object(CurrentNetwork::genesis_block().header().clone()),
     );
