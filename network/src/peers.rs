@@ -645,7 +645,9 @@ impl<N: Network, E: Environment> Peers<N, E> {
             .copied()
             .collect::<Vec<_>>()
         {
-            self.send(peer, message.clone()).await;
+            if !self.pool_server_peers.read().await.contains(&peer) {
+                self.send(peer, message.clone()).await;
+            }
         }
     }
 
