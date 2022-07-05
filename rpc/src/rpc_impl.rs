@@ -279,8 +279,4 @@ impl<N: Network, E: Environment> RpcFunctions<N> for RpcContext<N, E> {
         let pool_servers = self.state.peers().get_pool_servers().await;
         serde_json::json!(pool_servers)
     }
-
-    async fn is_ready(&self) -> bool {
-        E::status().is_ready()
-    }
 }

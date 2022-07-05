@@ -411,12 +411,14 @@ async fn test_get_ciphertext() {
         rpc_client.request("getciphertext", params).await.expect("Invalid response");
 
     // Check the ciphertext.
-    assert!(CurrentNetwork::genesis_block()
-        .transactions()
-        .first()
-        .unwrap()
-        .ciphertexts()
-        .any(|expected| response == *expected));
+    assert!(
+        CurrentNetwork::genesis_block()
+            .transactions()
+            .first()
+            .unwrap()
+            .ciphertexts()
+            .any(|expected| response == *expected)
+    );
 }
 
 #[tokio::test]
@@ -562,13 +564,15 @@ async fn test_get_transition() {
     let response: Transition<CurrentNetwork> = rpc_client.request("gettransition", params).await.expect("Invalid response");
 
     // Check the transition.
-    assert!(CurrentNetwork::genesis_block()
-        .transactions()
-        .first()
-        .unwrap()
-        .transitions()
-        .iter()
-        .any(|expected| response == *expected));
+    assert!(
+        CurrentNetwork::genesis_block()
+            .transactions()
+            .first()
+            .unwrap()
+            .transitions()
+            .iter()
+            .any(|expected| response == *expected)
+    );
 }
 
 #[tokio::test]
@@ -654,12 +658,4 @@ async fn test_get_memory_pool() {
 
     // Check the transactions.
     assert_eq!(response, vec![transaction]);
-}
-
-#[tokio::test]
-async fn test_is_ready() {
-    let rpc_server_addr = new_rpc_server::<CurrentNetwork, Client<CurrentNetwork>, RocksDB>(None).await;
-    let rpc_client = new_rpc_client(rpc_server_addr);
-    let response: bool = rpc_client.request("isready", None).await.expect("Invalid response");
-    println!("{:?}", response);
 }

@@ -103,8 +103,6 @@ pub trait RpcFunctions<N: Network> {
     async fn get_provers(&self) -> serde_json::Value;
 
     async fn get_pool_servers(&self) -> serde_json::Value;
-
-    async fn is_ready(&self) -> bool;
 }
 
 // /// Definition of private RPC endpoints that require authentication.
