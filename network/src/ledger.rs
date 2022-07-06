@@ -263,16 +263,20 @@ impl<N: Network, E: Environment> Ledger<N, E> {
         self.remove_peer(&peer_ip).await;
         // Update the status of the ledger.
         self.update_status().await;
+
         // Send a `Disconnect` message to the peer.
-        if let Err(error) = self
-            .state
-            .peers()
-            .router()
-            .send(PeersRequest::MessageSend(peer_ip, Message::Disconnect(reason)))
-            .await
-        {
-            warn!("[Disconnect] {}", error);
+        if !self.state.peers().get_pool_servers().await.contains(&peer_ip) {
+            if let Err(error) = self
+                .state
+                .peers()
+                .router()
+                .send(PeersRequest::MessageSend(peer_ip, Message::Disconnect(reason)))
+                .await
+            {
+                warn!("[Disconnect] {}", error);
+            }
         }
+
         // Route a `PeerDisconnected` to the peers.
         if let Err(error) = self.state.peers().router().send(PeersRequest::PeerDisconnected(peer_ip)).await {
             warn!("[PeerDisconnected] {}", error);
