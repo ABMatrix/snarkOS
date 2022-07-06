@@ -830,6 +830,11 @@ impl<N: Network, E: Environment> Peer<N, E> {
 
             // When this is reached, it means the peer has disconnected.
             // Route a `Disconnect` to the ledger.
+            if peer.node_type == NodeType::PoolServer {
+                if let Err(e) = peer.outbound_socket.close().await {
+                    error!("close socket with pool server {} failed with error: {}",peer_ip,e)
+                }
+            }
             if let Err(error) = state.ledger().router()
                 .send(LedgerRequest::Disconnect(peer_ip, DisconnectReason::PeerHasDisconnected))
                 .await
