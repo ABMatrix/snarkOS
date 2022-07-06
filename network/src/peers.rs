@@ -506,7 +506,9 @@ impl<N: Network, E: Environment> Peers<N, E> {
                     if *num_attempts > E::MAXIMUM_CONNECTION_FAILURES {
                         trace!("Dropping connection request from {} (tried {} secs ago)", peer_ip, elapsed);
                         // Add an entry for this `Peer` in the restricted peers.
-                        self.restricted_peers.write().await.insert(peer_ip, Instant::now());
+                        if !self.state.peers().get_pool_servers().await.contains(&peer_ip) {
+                            self.restricted_peers.write().await.insert(peer_ip, Instant::now());
+                        }
                     } else {
                         debug!("Received a connection request from {}", peer_ip);
                         // Update the number of attempts for this peer.
