@@ -15,6 +15,7 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use snarkos::{initialize_logger, Node};
+use std::env;
 
 use anyhow::Result;
 use clap::Parser;
@@ -24,6 +25,8 @@ fn main() -> Result<()> {
     if num_cpus::get() < 16 {
         eprintln!("\nWARNING - Your machine must have at least 16-cores to run a node.\n");
     }
+
+    env::set_var("RUST_MIN_STACK", "8388608");
 
     // Parse the provided arguments.
     let node = Node::parse();
