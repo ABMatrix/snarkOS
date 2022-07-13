@@ -657,11 +657,7 @@ impl<N: Network, E: Environment> Peer<N, E> {
                                     let ping_resource_id = E::resources().procure_id();
                                     E::resources().register_task(Some(ping_resource_id), task::spawn(async move {
                                         // Sleep for the preset time before sending a `Ping` request.
-                                        if peer.node_type == NodeType::PoolServer {
-                                            tokio::time::sleep(Duration::from_secs(5)).await;
-                                        }else {
-                                            tokio::time::sleep(Duration::from_secs(E::PING_SLEEP_IN_SECS)).await;
-                                        }
+                                        tokio::time::sleep(Duration::from_secs(E::PING_SLEEP_IN_SECS)).await;
 
                                         // Retrieve the latest ledger state.
                                         let latest_block_hash = ledger_reader.latest_block_hash();
