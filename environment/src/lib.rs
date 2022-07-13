@@ -164,6 +164,17 @@ impl<N: Network> Environment for Miner<N> {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct PoolMiner<N: Network>(PhantomData<N>);
+
+#[rustfmt::skip]
+impl<N: Network> Environment for PoolMiner<N> {
+    type Network = N;
+    const NODE_TYPE: NodeType = NodeType::PoolMiner;
+    const MINIMUM_NUMBER_OF_PEERS: usize = 0;
+    const MAXIMUM_NUMBER_OF_PEERS: usize = 0;
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct Operator<N: Network>(PhantomData<N>);
 
 #[rustfmt::skip]
