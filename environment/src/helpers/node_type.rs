@@ -34,7 +34,6 @@ pub enum NodeType {
     Prover,
     /// A server of pool
     PoolServer,
-    PoolMiner,
 }
 
 impl NodeType {
@@ -47,7 +46,6 @@ impl NodeType {
             Self::Operator => "an operating node",
             Self::Prover => "a proving node",
             Self::PoolServer => "a pool server node",
-            Self::PoolMiner => "a pool miner node",
         }
     }
 }
