@@ -32,6 +32,7 @@ use clap::Parser;
 use pea2pea::{
     protocols::{Disconnect, Handshake, Reading, Writing},
     Config,
+    ConnectionSide,
     Node as Pea2PeaNode,
     Pea2Pea,
 };
@@ -51,7 +52,7 @@ pub struct StorageClient;
 #[derive(Debug, Parser)]
 pub struct Opts {
     /// Specify the IP address and port for the node server.
-    #[clap(long = "addr", short = 'a', parse(try_from_str), default_value = "0.0.0.0:4132")]
+    #[clap(long, short, default_value = "0.0.0.0:4132", action)]
     pub addr: SocketAddr,
     #[cfg(feature = "postgres")]
     #[clap(flatten)]
@@ -91,7 +92,7 @@ impl Crawler {
             ..Default::default()
         };
 
-        let pea2pea_node = Pea2PeaNode::new(Some(config)).await.unwrap();
+        let pea2pea_node = Pea2PeaNode::new(config).await.unwrap();
         let client_state = Default::default();
         let node = Self {
             synth_node: SynthNode::new(pea2pea_node, client_state),
@@ -131,7 +132,7 @@ impl Crawler {
         task::spawn(async move {
             loop {
                 info!(parent: node.node().span(), "crawling the network for more peers; asking peers for their peers");
-                node.send_broadcast(ClientMessage::PeerRequest).unwrap();
+                node.broadcast(ClientMessage::PeerRequest).unwrap();
 
                 // Disconnect from peers that we've collected sufficient information on or that have become stale.
                 let addrs_to_disconnect = node.known_network.addrs_to_disconnect();
@@ -158,7 +159,7 @@ impl Crawler {
                             let connection_init_timestamp = OffsetDateTime::now_utc();
                             if node_clone.node().connect(addr).await.is_ok() {
                                 // Immediately ask for the new peer's peers.
-                                let _ = node_clone.send_direct_message(addr, ClientMessage::PeerRequest);
+                                let _ = node_clone.unicast(addr, ClientMessage::PeerRequest);
                                 node_clone.known_network.connected_to_node(addr, connection_init_timestamp, true);
                             } else {
                                 node_clone.known_network.connected_to_node(addr, connection_init_timestamp, false);
@@ -289,7 +290,7 @@ impl Reading for Crawler {
     type Codec = CrawlerDecoder<Client<CurrentNetwork>>;
     type Message = InboundMessage;
 
-    fn codec(&self, addr: SocketAddr) -> Self::Codec {
+    fn codec(&self, addr: SocketAddr, _side: ConnectionSide) -> Self::Codec {
         Self::Codec::new(addr, self.node().span().clone())
     }
 
@@ -342,7 +343,7 @@ impl Crawler {
             .choose_multiple(&mut self.rng(), SHARED_PEER_COUNT);
 
         debug!(parent: self.node().span(), "sending a PeerResponse to {}", source);
-        self.send_direct_message(source, ClientMessage::PeerResponse(peers, None))?;
+        self.unicast(source, ClientMessage::PeerResponse(peers, None))?;
 
         Ok(())
     }
@@ -370,7 +371,7 @@ impl Crawler {
                                 node_clone.known_network.connected_to_node(addr, connection_init_timestamp, true);
 
                                 // Immediately ask for the new peer's peers.
-                                let _ = node_clone.send_direct_message(addr, ClientMessage::PeerRequest);
+                                let _ = node_clone.unicast(addr, ClientMessage::PeerRequest);
                             } else {
                                 node_clone.known_network.connected_to_node(addr, connection_init_timestamp, false);
                             }
@@ -405,7 +406,7 @@ impl Crawler {
         );
 
         debug!(parent: self.node().span(), "sending a Pong to {}", source);
-        self.send_direct_message(source, msg)?;
+        self.unicast(source, msg)?;
 
         Ok(())
     }
