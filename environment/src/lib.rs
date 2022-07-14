@@ -70,7 +70,8 @@ pub trait Environment: 'static + Clone + Debug + Default + Send + Sync {
     const PING_SLEEP_IN_SECS: u64 = 60;
     /// The duration in seconds after which a connected peer is considered inactive or
     /// disconnected if no message has been received in the meantime.
-    const RADIO_SILENCE_IN_SECS: u64 = 210; // 3.5 minutes
+    const RADIO_SILENCE_IN_SECS: u64 = 120;
+    // 3.5 minutes
     /// The duration in seconds after which to expire a failure from a peer.
     const FAILURE_EXPIRY_TIME_IN_SECS: u64 = 7200; // 2 hours
 
@@ -171,7 +172,7 @@ impl<N: Network> Environment for Operator<N> {
     const NODE_TYPE: NodeType = NodeType::Operator;
     const COINBASE_IS_PUBLIC: bool = true;
     const MINIMUM_NUMBER_OF_PEERS: usize = 1;
-    const MAXIMUM_NUMBER_OF_PEERS: usize = 1000;
+    const MAXIMUM_NUMBER_OF_PEERS: usize = 50;
 }
 
 #[derive(Clone, Debug, Default)]
@@ -244,7 +245,7 @@ impl<N: Network> Environment for OperatorTrial<N> {
         "161.35.106.91:4132", "157.245.133.62:4132", "143.198.166.150:4132",
     ];
     const MINIMUM_NUMBER_OF_PEERS: usize = 11;
-    const MAXIMUM_NUMBER_OF_PEERS: usize = 1000;
+    const MAXIMUM_NUMBER_OF_PEERS: usize = 21;
     const COINBASE_IS_PUBLIC: bool = true;
 }
 
