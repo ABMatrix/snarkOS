@@ -62,7 +62,7 @@ pub trait Outbound {
                 // Update the timestamp for the peer and sent block.
                 peer.seen_outbound_blocks.write().await.insert(message.block_hash, SystemTime::now());
                 // Report the unconfirmed block height.
-                if is_ready_to_send && peer.node_type.read().await != NodeType::PoolServer {
+                if is_ready_to_send && !peer.node_type.read().await.is_pool_server() {
                     trace!("Preparing to send 'UnconfirmedBlock {}' to {peer_ip}", message.block_height);
                 }
 
