@@ -22,6 +22,7 @@ use futures::SinkExt;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
+use snarkos_node_executor::NodeType;
 
 #[async_trait]
 pub trait Outbound {
@@ -61,7 +62,7 @@ pub trait Outbound {
                 // Update the timestamp for the peer and sent block.
                 peer.seen_outbound_blocks.write().await.insert(message.block_hash, SystemTime::now());
                 // Report the unconfirmed block height.
-                if is_ready_to_send {
+                if is_ready_to_send && peer.node_type.read().await != NodeType::PoolServer {
                     trace!("Preparing to send 'UnconfirmedBlock {}' to {peer_ip}", message.block_height);
                 }
 
