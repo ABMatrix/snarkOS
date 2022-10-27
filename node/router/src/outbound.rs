@@ -47,6 +47,10 @@ pub trait Outbound {
                 true
             }
             Message::UnconfirmedBlock(ref mut message) => {
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
+                }
                 // Retrieve the last seen timestamp of this block for this peer.
                 let last_seen = peer
                     .seen_outbound_blocks
@@ -62,7 +66,7 @@ pub trait Outbound {
                 // Update the timestamp for the peer and sent block.
                 peer.seen_outbound_blocks.write().await.insert(message.block_hash, SystemTime::now());
                 // Report the unconfirmed block height.
-                if is_ready_to_send && !peer.node_type.read().await.is_pool_server() {
+                if is_ready_to_send {
                     trace!("Preparing to send 'UnconfirmedBlock {}' to {peer_ip}", message.block_height);
                 }
 
