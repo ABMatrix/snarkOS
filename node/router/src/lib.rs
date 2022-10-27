@@ -54,7 +54,7 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::Framed;
 
 // TODO (raychu86): Move this declaration.
-const ALEO_MAXIMUM_FORK_DEPTH: u32 = 4096;
+pub const ALEO_MAXIMUM_FORK_DEPTH: u32 = 4096;
 
 /// Shorthand for the parent half of the `Router` channel.
 pub type RouterSender<N> = mpsc::Sender<RouterRequest<N>>;
