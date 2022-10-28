@@ -53,8 +53,12 @@ pub trait Inbound<N: Network>: Executor {
             Message::UnconfirmedBlock(message) => self.unconfirmed_block(message, peer_ip, peer, router).await,
             Message::UnconfirmedSolution(message) => self.unconfirmed_solution(message, peer_ip, router).await,
             Message::UnconfirmedTransaction(message) => self.unconfirmed_transaction(message, peer_ip, router).await,
-            Message::NewEpochChallenge(_message) => {
+            Message::NewEpochChallenge(message) => {
                 // todo deal with NewEpochChallenge
+                self.new_epoch_challenge(
+                    message,
+                    router,
+                ).await;
                 true
             }
         }
@@ -370,15 +374,18 @@ pub trait Inbound<N: Network>: Executor {
     async fn new_epoch_challenge(
         &self,
         message: NewEpochChallenge<N>,
-        pool_peers: Vec<SocketAddr>,
         router: &Router<N>,
     ) -> bool {
         // Prepare the full message.
         let full_message = Message::NewEpochChallenge(message.clone());
-
+        let pool_peers = router.connected_pool_servers().await;
         // Send NewEpochChallenge to all pool server
         for peer in pool_peers {
-            router.handle_send(peer, full_message.clone()).await;
+            let full_message = full_message.clone();
+            let router = router.clone();
+            spawn_task!(Self, Self::resources().procure_id(),{
+                router.handle_send(peer, full_message).await;
+            });
         }
         true
     }
