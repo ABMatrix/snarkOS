@@ -80,6 +80,7 @@ mod unconfirmed_transaction;
 pub use unconfirmed_transaction::UnconfirmedTransaction;
 
 mod new_epoch_challenge;
+pub use new_epoch_challenge::NewEpochChallenge;
 
 
 use snarkos_node_executor::{NodeType, Status};
@@ -88,7 +89,6 @@ use snarkvm::prelude::{Block, EpochChallenge, FromBytes, Header, Network, Prover
 use ::bytes::{Buf, BytesMut};
 use anyhow::{bail, Result};
 use std::{io::Write, net::SocketAddr};
-use crate::new_epoch_challenge::NewEpochChallenge;
 
 pub trait MessageTrait {
     /// Returns the message name.

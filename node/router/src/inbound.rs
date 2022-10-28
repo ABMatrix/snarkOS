@@ -56,7 +56,7 @@ pub trait Inbound<N: Network>: Executor {
             Message::NewEpochChallenge(_message) => {
                 // todo deal with NewEpochChallenge
                 true
-            },
+            }
         }
     }
 
@@ -363,6 +363,22 @@ pub trait Inbound<N: Network>: Executor {
                 }
             }
             Err(error) => warn!("[UnconfirmedTransaction] {error}"),
+        }
+        true
+    }
+
+    async fn new_epoch_challenge(
+        &self,
+        message: NewEpochChallenge<N>,
+        pool_peers: Vec<SocketAddr>,
+        router: &Router<N>,
+    ) -> bool {
+        // Prepare the full message.
+        let full_message = Message::NewEpochChallenge(message.clone());
+
+        // Send NewEpochChallenge to all pool server
+        for peer in pool_peers {
+            router.handle_send(peer, full_message.clone()).await;
         }
         true
     }
