@@ -643,9 +643,6 @@ impl<N: Network> Router<N> {
             let peer_ip = *peer.ip();
 
             info!("Connected to {peer_ip}");
-            if peer.node_type().await.is_pool_server(){
-                router.process()
-            }
 
             // Process incoming messages until this stream is disconnected.
             let executor_clone = executor.clone();
