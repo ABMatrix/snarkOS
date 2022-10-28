@@ -169,7 +169,7 @@ impl<N: Network> Beacon<N> {
         let beacon = self.clone();
         spawn_task!(Self, {
             // Expected time per block.
-            const EXPECTED_BLOCK_TIME: u64 = 15; // 15 seconds per block
+            const EXPECTED_BLOCK_TIME: u64 = 30; // 15 seconds per block
             // The time it took to generate the previous block.
             let mut block_generation_time = 0;
 

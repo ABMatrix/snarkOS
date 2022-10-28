@@ -377,7 +377,17 @@ impl<N: Network> Router<N> {
             }
             RouterRequest::SendNewEpochChallenge(new_epoch_challenge_msg) => {
                 match new_epoch_challenge_msg {
-                    Message::NewEpochChallenge(_) => {}
+                    Message::NewEpochChallenge(challenge) => {
+                        let pool_servers = self.connected_pool_servers().await;
+                        let message = Message::NewEpochChallenge(challenge);
+                        for server in pool_servers {
+                            let router = self.clone();
+                            let message = message.clone();
+                            spawn_task!(E::resources().procure_id(),{
+                                router.handle_send(server, message).await;
+                            });
+                        }
+                    }
                     msg => {
                         warn!("unsupported message {} of SendNewEpochChallenge", msg.name())
                     }
@@ -633,6 +643,9 @@ impl<N: Network> Router<N> {
             let peer_ip = *peer.ip();
 
             info!("Connected to {peer_ip}");
+            if peer.node_type().await.is_pool_server(){
+                router.process()
+            }
 
             // Process incoming messages until this stream is disconnected.
             let executor_clone = executor.clone();

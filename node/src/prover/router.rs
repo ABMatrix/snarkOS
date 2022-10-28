@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
+use tokio::task;
+use snarkos_node_messages::{ChallengeRequest, NewEpochChallenge};
 use super::*;
 
 #[async_trait]
@@ -26,10 +28,27 @@ impl<N: Network> Inbound<N> for Prover<N> {
         let epoch_challenge = message.epoch_challenge;
         match message.block.deserialize().await {
             Ok(block) => {
-                // Save the latest epoch challenge in the prover.
-                self.latest_epoch_challenge.write().await.replace(epoch_challenge);
-                // Save the latest block in the prover.
-                self.latest_block.write().await.replace(block);
+                trace!("received puzzle_response");
+                let latest_epoch_challenge = self.latest_epoch_challenge.read().await.clone();
+                if latest_epoch_challenge.is_none() || (latest_epoch_challenge.is_some() && epoch_challenge != latest_epoch_challenge.unwrap()) {
+                    // Save the latest epoch challenge in the prover.
+                    self.latest_epoch_challenge.write().await.replace(epoch_challenge.clone());
+                    // Save the latest block in the prover.
+                    self.latest_block.write().await.replace(block.clone());
+                    trace!("latest_epoch_challenge updated");
+                    let router = self.router.clone();
+                    let address = self.account.address().clone();
+
+                    if let Err(e) = router.process(RouterRequest::SendNewEpochChallenge(
+                        Message::NewEpochChallenge(NewEpochChallenge {
+                            proof_target: block.proof_target(),
+                            address,
+                            epoch_challenge: epoch_challenge.clone(),
+                        }))
+                    ).await {
+                        warn!("[puzzle_response] {}", e);
+                    }
+                }
                 true
             }
             Err(error) => {

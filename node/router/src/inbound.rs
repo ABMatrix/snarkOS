@@ -362,23 +362,4 @@ pub trait Inbound<N: Network>: Executor {
         }
         true
     }
-
-    async fn new_epoch_challenge(
-        &self,
-        message: NewEpochChallenge<N>,
-        router: &Router<N>,
-    ) -> bool {
-        // Prepare the full message.
-        let full_message = Message::NewEpochChallenge(message.clone());
-        let pool_peers = router.connected_pool_servers().await;
-        // Send NewEpochChallenge to all pool server
-        for peer in pool_peers {
-            let full_message = full_message.clone();
-            let router = router.clone();
-            spawn_task!(Self, Self::resources().procure_id(),{
-                router.handle_send(peer, full_message).await;
-            });
-        }
-        true
-    }
 }

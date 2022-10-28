@@ -20,9 +20,8 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct NewEpochChallenge<N: Network> {
     pub proof_target: u64,
-    pub latest_epoch_num: u32,
-    pub previous_block_hash: N::BlockHash,
     pub address: Address<N>,
+    pub epoch_challenge: EpochChallenge<N>,
 }
 
 impl<N: Network> MessageTrait for NewEpochChallenge<N> {
@@ -36,9 +35,8 @@ impl<N: Network> MessageTrait for NewEpochChallenge<N> {
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(&self.proof_target.to_le_bytes())?;
-        writer.write_all(&self.latest_epoch_num.to_le_bytes())?;
-        writer.write_all(&self.previous_block_hash.to_bytes_le()?)?;
         writer.write_all(&self.address.to_bytes_le()?)?;
+        writer.write_all(&self.epoch_challenge.to_bytes_le()?)?;
         Ok(())
     }
 
@@ -48,9 +46,8 @@ impl<N: Network> MessageTrait for NewEpochChallenge<N> {
         let mut reader = bytes.reader();
         Ok(Self {
             proof_target: bincode::deserialize_from(&mut reader)?,
-            latest_epoch_num: bincode::deserialize_from(&mut reader)?,
-            previous_block_hash: bincode::deserialize_from(&mut reader)?,
             address: bincode::deserialize_from(&mut reader)?,
+            epoch_challenge: EpochChallenge::read_le(&mut reader)?,
         })
     }
 }

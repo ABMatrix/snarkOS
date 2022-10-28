@@ -66,7 +66,7 @@ impl<N: Network> Prover<N> {
         // Initialize the heartbeat.
         node.initialize_heartbeat().await;
         // Initialize coinbase proving.
-        node.initialize_coinbase_proving().await;
+        // node.initialize_coinbase_proving().await;
         // Initialize the signal handler.
         let _ = node.handle_signals();
         // Return the node.
