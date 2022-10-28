@@ -205,6 +205,17 @@ impl<N: Network> Router<N> {
         self.connected_peers.read().await.keys().copied().collect()
     }
 
+    /// Returns the list of connected pool servers.
+    pub async fn connected_pool_servers(&self) -> Vec<SocketAddr> {
+        let mut connected_pool_servers = Vec::new();
+        for (ip, peer) in self.connected_peers.read().await.iter() {
+            if peer.node_type().await.is_pool_server() {
+                connected_pool_servers.push(*ip);
+            }
+        }
+        connected_pool_servers
+    }
+
     /// Returns the list of connected peers that are beacons.
     pub async fn connected_beacons(&self) -> Vec<SocketAddr> {
         let mut connected_beacons = Vec::new();

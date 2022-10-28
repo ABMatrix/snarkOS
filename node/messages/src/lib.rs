@@ -20,49 +20,67 @@
 extern crate tracing;
 
 mod helpers;
+
 pub use helpers::*;
 
 mod block_request;
+
 pub use block_request::BlockRequest;
 
 mod block_response;
+
 pub use block_response::BlockResponse;
 
 mod challenge_request;
+
 pub use challenge_request::ChallengeRequest;
 
 mod challenge_response;
+
 pub use challenge_response::ChallengeResponse;
 
 mod disconnect;
+
 pub use disconnect::Disconnect;
 
 mod peer_request;
+
 pub use peer_request::PeerRequest;
 
 mod peer_response;
+
 pub use peer_response::PeerResponse;
 
 mod ping;
+
 pub use ping::Ping;
 
 mod pong;
+
 pub use pong::Pong;
 
 mod puzzle_request;
+
 pub use puzzle_request::PuzzleRequest;
 
 mod puzzle_response;
+
 pub use puzzle_response::PuzzleResponse;
 
 mod unconfirmed_block;
+
 pub use unconfirmed_block::UnconfirmedBlock;
 
 mod unconfirmed_solution;
+
 pub use unconfirmed_solution::UnconfirmedSolution;
 
 mod unconfirmed_transaction;
+
 pub use unconfirmed_transaction::UnconfirmedTransaction;
+
+mod new_epoch_challenge;
+
 
 use snarkos_node_executor::{NodeType, Status};
 use snarkvm::prelude::{Block, EpochChallenge, FromBytes, Header, Network, ProverSolution, ToBytes, Transaction};
@@ -70,6 +88,7 @@ use snarkvm::prelude::{Block, EpochChallenge, FromBytes, Header, Network, Prover
 use ::bytes::{Buf, BytesMut};
 use anyhow::{bail, Result};
 use std::{io::Write, net::SocketAddr};
+use crate::new_epoch_challenge::NewEpochChallenge;
 
 pub trait MessageTrait {
     /// Returns the message name.
@@ -78,8 +97,8 @@ pub trait MessageTrait {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()>;
     /// Deserializes the given buffer into a message.
     fn deserialize(bytes: BytesMut) -> Result<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 #[derive(Clone, Debug)]
@@ -98,6 +117,7 @@ pub enum Message<N: Network> {
     UnconfirmedBlock(UnconfirmedBlock<N>),
     UnconfirmedSolution(UnconfirmedSolution<N>),
     UnconfirmedTransaction(UnconfirmedTransaction<N>),
+    NewEpochChallenge(NewEpochChallenge<N>),
 }
 
 impl<N: Network> Message<N> {
@@ -122,6 +142,7 @@ impl<N: Network> Message<N> {
             Self::UnconfirmedBlock(message) => message.name(),
             Self::UnconfirmedSolution(message) => message.name(),
             Self::UnconfirmedTransaction(message) => message.name(),
+            Self::NewEpochChallenge(message) => message.name(),
         }
     }
 
@@ -143,6 +164,7 @@ impl<N: Network> Message<N> {
             Self::UnconfirmedBlock(..) => 11,
             Self::UnconfirmedSolution(..) => 12,
             Self::UnconfirmedTransaction(..) => 13,
+            Self::NewEpochChallenge(..) => 100,
         }
     }
 
@@ -166,6 +188,7 @@ impl<N: Network> Message<N> {
             Self::UnconfirmedBlock(message) => message.serialize(writer),
             Self::UnconfirmedSolution(message) => message.serialize(writer),
             Self::UnconfirmedTransaction(message) => message.serialize(writer),
+            Self::NewEpochChallenge(message) => message.serialize(writer),
         }
     }
 
@@ -196,6 +219,7 @@ impl<N: Network> Message<N> {
             11 => Self::UnconfirmedBlock(MessageTrait::deserialize(bytes)?),
             12 => Self::UnconfirmedSolution(MessageTrait::deserialize(bytes)?),
             13 => Self::UnconfirmedTransaction(MessageTrait::deserialize(bytes)?),
+            100 => Self::NewEpochChallenge(MessageTrait::deserialize(bytes)?),
             _ => bail!("Unknown message ID {id}"),
         };
 

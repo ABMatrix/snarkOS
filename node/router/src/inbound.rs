@@ -52,7 +52,11 @@ pub trait Inbound<N: Network>: Executor {
             Message::PuzzleResponse(message) => self.puzzle_response(message, peer_ip).await,
             Message::UnconfirmedBlock(message) => self.unconfirmed_block(message, peer_ip, peer, router).await,
             Message::UnconfirmedSolution(message) => self.unconfirmed_solution(message, peer_ip, router).await,
-            Message::UnconfirmedTransaction(message) => self.unconfirmed_transaction(message, peer_ip, router).await
+            Message::UnconfirmedTransaction(message) => self.unconfirmed_transaction(message, peer_ip, router).await,
+            Message::NewEpochChallenge(_message) => {
+                // todo deal with NewEpochChallenge
+                true
+            },
         }
     }
 
