@@ -22,15 +22,19 @@ extern crate async_trait;
 extern crate tracing;
 
 mod handshake;
+
 pub use handshake::*;
 
 mod inbound;
+
 pub use inbound::*;
 
 mod outbound;
+
 pub use outbound::*;
 
 mod peer;
+
 pub use peer::*;
 
 use snarkos_node_executor::{spawn_task, Executor};
@@ -83,6 +87,8 @@ pub enum RouterRequest<N: Network> {
     SendPeerResponse(SocketAddr),
     /// ReceivePeerResponse := (\[peer_ip\])
     ReceivePeerResponse(Vec<SocketAddr>),
+    /// SendNewEpochChallenge := (new_epoch_challenge_msg)
+    SendNewEpochChallenge(Message<N>),
 }
 
 #[derive(Clone, Debug)]
@@ -114,11 +120,14 @@ pub struct Router<N: Network> {
 #[rustfmt::skip]
 impl<N: Network> Router<N> {
     /// The maximum duration in seconds permitted for establishing a connection with a node, before dropping the connection.
-    const CONNECTION_TIMEOUT_IN_MILLIS: u64 = 210; // 3.5 minutes
+    const CONNECTION_TIMEOUT_IN_MILLIS: u64 = 210;
+    // 3.5 minutes
     /// The duration in seconds after which to expire a failure from a peer.
-    const FAILURE_EXPIRY_TIME_IN_SECS: u64 = 7200; // 2 hours
+    const FAILURE_EXPIRY_TIME_IN_SECS: u64 = 7200;
+    // 2 hours
     /// The duration in seconds to sleep in between heartbeat executions.
-    const HEARTBEAT_IN_SECS: u64 = 9; // 9 seconds
+    const HEARTBEAT_IN_SECS: u64 = 9;
+    // 9 seconds
     /// The maximum number of candidate peers permitted to be stored in the node.
     const MAXIMUM_CANDIDATE_PEERS: usize = 10_000;
     /// The maximum number of connection failures permitted by an inbound connecting peer.
@@ -128,7 +137,8 @@ impl<N: Network> Router<N> {
     /// The minimum number of peers required to maintain connections with.
     const MINIMUM_NUMBER_OF_PEERS: usize = 1;
     /// The duration in seconds to sleep in between ping requests with a connected peer.
-    const PING_SLEEP_IN_SECS: u64 = 60; // 1 minute
+    const PING_SLEEP_IN_SECS: u64 = 60;
+    // 1 minute
     /// The duration in seconds after which a connected peer is considered inactive or
     /// disconnected if no message has been received in the meantime.
     const RADIO_SILENCE_IN_SECS: u64 = 180; // 3 minutes
@@ -364,6 +374,14 @@ impl<N: Network> Router<N> {
             }
             RouterRequest::ReceivePeerResponse(peer_ips) => {
                 self.add_candidate_peers(peer_ips.iter()).await;
+            }
+            RouterRequest::SendNewEpochChallenge(new_epoch_challenge_msg) => {
+                match new_epoch_challenge_msg {
+                    Message::NewEpochChallenge(_) => {}
+                    msg => {
+                        warn!("unsupported message {} of SendNewEpochChallenge", msg.name())
+                    }
+                }
             }
         }
     }
@@ -724,7 +742,7 @@ impl<N: Network> Router<N> {
     ///
     /// This method skips adding any given peers if the combined size exceeds the threshold,
     /// as the peer providing this list could be subverting the protocol.
-    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item = &'a SocketAddr> + IntoIterator>(&self, peers: T) {
+    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item=&'a SocketAddr> + IntoIterator>(&self, peers: T) {
         // Acquire the candidate peers write lock.
         let mut candidate_peers = self.candidate_peers.write().await;
         // Ensure the combined number of peers does not surpass the threshold.

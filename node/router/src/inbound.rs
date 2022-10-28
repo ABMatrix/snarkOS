@@ -35,7 +35,7 @@ pub trait Inbound<N: Network>: Executor {
         match message {
             Message::BlockRequest(message) => Self::block_request(message).await,
             Message::BlockResponse(message) => Self::block_response(message).await,
-            Message::ChallengeRequest(..) | Message::ChallengeResponse(..) => {
+            Message::ChallengeRequest(..) | Message::ChallengeResponse(..) | Message::NewEpochChallenge(..) => {
                 // Peer is not following the protocol.
                 warn!("Peer {peer_ip} is not following the protocol");
                 false
@@ -53,14 +53,6 @@ pub trait Inbound<N: Network>: Executor {
             Message::UnconfirmedBlock(message) => self.unconfirmed_block(message, peer_ip, peer, router).await,
             Message::UnconfirmedSolution(message) => self.unconfirmed_solution(message, peer_ip, router).await,
             Message::UnconfirmedTransaction(message) => self.unconfirmed_transaction(message, peer_ip, router).await,
-            Message::NewEpochChallenge(message) => {
-                // todo deal with NewEpochChallenge
-                self.new_epoch_challenge(
-                    message,
-                    router,
-                ).await;
-                true
-            }
         }
     }
 
