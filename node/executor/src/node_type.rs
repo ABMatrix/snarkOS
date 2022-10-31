@@ -39,7 +39,7 @@ impl NodeType {
             Self::Prover => "a prover node",
             Self::Validator => "a validator node",
             Self::Beacon => "a beacon node",
-            Self::PoolServer => "a pool server"
+            Self::PoolServer => "a pool server",
         }
     }
 

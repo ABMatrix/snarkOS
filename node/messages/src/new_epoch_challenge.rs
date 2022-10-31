@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
-use snarkvm::prelude::Address;
 use super::*;
+use snarkvm::prelude::Address;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewEpochChallenge<N: Network> {
     pub proof_target: u64,
     pub address: Address<N>,

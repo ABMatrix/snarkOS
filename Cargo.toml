@@ -42,7 +42,7 @@ path = "snarkos/main.rs"
 git = "https://github.com/ABMatrix/snarkVM.git"
 #branch = "ABMatrix/testnet3.2"
 #rev = "7ade8940"
-branch = "ABMatrix/testnet3.2-modular-nodes"
+branch = "ABMatrix/testnet3.2"
 features = ["circuit", "console", "parallel"]
 
 [dependencies.anyhow]

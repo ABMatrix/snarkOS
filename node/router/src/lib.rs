@@ -413,24 +413,22 @@ impl<N: Network> Router<N> {
             RouterRequest::ReceivePeerResponse(peer_ips) => {
                 self.add_candidate_peers(peer_ips.iter()).await;
             }
-            RouterRequest::SendNewEpochChallenge(new_epoch_challenge_msg) => {
-                match new_epoch_challenge_msg {
-                    Message::NewEpochChallenge(challenge) => {
-                        let pool_servers = self.connected_pool_servers().await;
-                        let message = Message::NewEpochChallenge(challenge);
-                        for server in pool_servers {
-                            let router = self.clone();
-                            let message = message.clone();
-                            spawn_task!(E::resources().procure_id(),{
-                                router.handle_send(server, message).await;
-                            });
-                        }
-                    }
-                    msg => {
-                        warn!("unsupported message {} of SendNewEpochChallenge", msg.name())
+            RouterRequest::SendNewEpochChallenge(new_epoch_challenge_msg) => match new_epoch_challenge_msg {
+                Message::NewEpochChallenge(challenge) => {
+                    let pool_servers = self.connected_pool_servers().await;
+                    let message = Message::NewEpochChallenge(challenge);
+                    for server in pool_servers {
+                        let router = self.clone();
+                        let message = message.clone();
+                        spawn_task!(E::resources().procure_id(), {
+                            router.handle_send(server, message).await;
+                        });
                     }
                 }
-            }
+                msg => {
+                    warn!("unsupported message {} of SendNewEpochChallenge", msg.name())
+                }
+            },
         }
     }
 

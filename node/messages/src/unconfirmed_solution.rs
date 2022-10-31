@@ -41,7 +41,7 @@ impl<N: Network> MessageTrait for UnconfirmedSolution<N> {
     fn deserialize(bytes: BytesMut) -> Result<Self> {
         let mut reader = bytes.reader();
         Ok(Self {
-            puzzle_commitment: PuzzleCommitment::read_le(&mut reader)?,
+            puzzle_commitment: PuzzleCommitment::<N>::read_le(&mut reader)?,
             solution: Data::Buffer(reader.into_inner().freeze()),
         })
     }
