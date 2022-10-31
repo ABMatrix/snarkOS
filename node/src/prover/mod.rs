@@ -27,6 +27,7 @@ use anyhow::Result;
 use core::time::Duration;
 use rand::Rng;
 use std::{net::SocketAddr, sync::Arc};
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 /// A prover is a full node, capable of producing proofs for consensus.
@@ -65,10 +66,10 @@ impl<N: Network> Prover<N> {
         router.initialize_handler(node.clone(), router_receiver).await;
         // Initialize the heartbeat.
         node.initialize_heartbeat().await;
-        // Initialize coinbase proving.
-        // node.initialize_coinbase_proving().await;
+        // Initialize the coinbase puzzle.
+        // node.initialize_coinbase_puzzle().await;
         // Initialize the signal handler.
-        let _ = node.handle_signals();
+        node.handle_signals();
         // Return the node.
         Ok(node)
     }
@@ -116,25 +117,30 @@ impl<N: Network> Prover<N> {
         let prover = self.clone();
         spawn_task!(Self, {
             loop {
-                // Retrieve the first connected beacon.
-                if let Some(connected_beacon) = prover.router.connected_beacons().await.first() {
-                    // Send the "PuzzleRequest" to the beacon.
-                    let request = RouterRequest::MessageSend(*connected_beacon, Message::PuzzleRequest(PuzzleRequest));
-                    if let Err(error) = prover.router.process(request).await {
-                        warn!("[PuzzleRequest] {}", error);
-                    }
-                } else {
-                    warn!("[PuzzleRequest] No connected beacons");
-                }
-
+                // Send a "PuzzleRequest" to a beacon node.
+                prover.send_puzzle_request().await;
                 // Sleep for `Self::HEARTBEAT_IN_SECS` seconds.
                 tokio::time::sleep(Duration::from_secs(Self::HEARTBEAT_IN_SECS)).await;
             }
         });
     }
 
-    /// Initialize a new instance of coinbase proving.
-    async fn initialize_coinbase_proving(&self) {
+    /// Sends a "PuzzleRequest" to a beacon node.
+    async fn send_puzzle_request(&self) {
+        // Retrieve the first connected beacon.
+        if let Some(connected_beacon) = self.router.connected_beacons().await.first() {
+            // Send the "PuzzleRequest" to the beacon.
+            let request = RouterRequest::MessageSend(*connected_beacon, Message::PuzzleRequest(PuzzleRequest));
+            if let Err(error) = self.router.process(request).await {
+                warn!("[PuzzleRequest] {error}");
+            }
+        } else {
+            warn!("[PuzzleRequest] There are no connected beacons");
+        }
+    }
+
+    /// Initialize a new instance of the coinbase puzzle.
+    async fn initialize_coinbase_puzzle(&self) {
         let prover = self.clone();
         spawn_task!(Self, {
             loop {
@@ -145,21 +151,47 @@ impl<N: Network> Prover<N> {
                     continue;
                 }
 
+                // If the latest block timestamp exceeds a multiple of the anchor time, then skip this iteration.
+                if let Some(latest_block) = prover.latest_block.read().await.as_ref() {
+                    // Compute the elapsed time since the latest block.
+                    let elapsed = OffsetDateTime::now_utc().unix_timestamp().saturating_sub(latest_block.timestamp());
+                    // If the elapsed time exceeds a multiple of the anchor time, then skip this iteration.
+                    if elapsed > N::ANCHOR_TIME as i64 * 6 {
+                        warn!("Skipping an iteration of the prover solution (latest block is stale)");
+                        // Send a "PuzzleRequest" to a beacon node.
+                        prover.send_puzzle_request().await;
+                        // Sleep for `Self::HEARTBEAT_IN_SECS` seconds.
+                        tokio::time::sleep(Duration::from_secs(Self::HEARTBEAT_IN_SECS)).await;
+                        continue;
+                    }
+                }
+
                 // Read the latest epoch challenge.
                 let latest_epoch_challenge = prover.latest_epoch_challenge.read().await.clone();
                 // Read the latest block.
                 let latest_block = prover.latest_block.read().await.clone();
 
-                // If the latest epoch challenge and latest block exists, then generate a coinbase proof.
+                // If the latest epoch challenge and latest block exists, then generate a prover solution.
                 if let (Some(epoch_challenge), Some(block)) = (latest_epoch_challenge, latest_block) {
                     let prover = prover.clone();
                     spawn_task!(Self, {
                         // Set the status to `Proving`.
                         Self::status().update(Status::Proving);
 
-                        debug!("Proving the coinbase puzzle for epoch {}", epoch_challenge.epoch_number());
+                        // Retrieve the latest coinbase target.
+                        let latest_coinbase_target = block.coinbase_target();
+                        // Retrieve the latest proof target.
+                        let latest_proof_target = block.proof_target();
 
-                        // Construct a coinbase solution.
+                        debug!(
+                            "Proving CoinbasePuzzle(Epoch {}, Block {}, Coinbase Target {}, Proof Target {})",
+                            epoch_challenge.epoch_number(),
+                            block.height(),
+                            latest_coinbase_target,
+                            latest_proof_target,
+                        );
+
+                        // Construct a prover solution.
                         let prover_solution = match prover.coinbase_puzzle.prove(
                             &epoch_challenge,
                             *prover.address(),
@@ -182,13 +214,11 @@ impl<N: Network> Prover<N> {
                         };
 
                         // Ensure that the prover solution target is sufficient.
-                        match prover_solution_target >= block.proof_target() {
-                            true => info!("Found a prover solution with target {prover_solution_target}"),
+                        match prover_solution_target >= latest_proof_target {
+                            true => info!("Found a Solution(Proof Target {prover_solution_target})"),
                             false => {
                                 trace!(
-                                    "Prover solution is below the necessary proof target ({} < {})",
-                                    prover_solution_target,
-                                    block.proof_target()
+                                    "Prover solution was below the necessary proof target ({prover_solution_target} < {latest_proof_target})"
                                 );
                                 return;
                             }
@@ -196,15 +226,17 @@ impl<N: Network> Prover<N> {
 
                         // Propagate the "UnconfirmedSolution" to the network.
                         let message = Message::UnconfirmedSolution(UnconfirmedSolution {
+                            puzzle_commitment: prover_solution.commitment(),
                             solution: Data::Object(prover_solution),
                         });
                         let request = RouterRequest::MessagePropagate(message, vec![]);
                         if let Err(error) = prover.router.process(request).await {
-                            warn!("[UnconfirmedSolution] {}", error);
+                            warn!("[UnconfirmedSolution] {error}");
                         }
 
                         // Set the status to `Ready`.
                         Self::status().update(Status::Ready);
+                        tokio::time::sleep(Duration::from_millis(50)).await;
                     })
                 } else {
                     tokio::time::sleep(Duration::from_secs(1)).await;

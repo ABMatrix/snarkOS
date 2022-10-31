@@ -30,7 +30,7 @@ pub enum Status {
     Ready = 0,
     /// The node is connecting to the minimum number of required peers.
     Peering,
-    /// The node is producing a coinbase proof.
+    /// The node is proving the coinbase puzzle.
     Proving,
     /// The node is syncing blocks with a connected peer.
     Syncing,
@@ -40,7 +40,7 @@ pub enum Status {
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

@@ -22,24 +22,20 @@ extern crate async_trait;
 extern crate tracing;
 
 mod handshake;
-
 pub use handshake::*;
 
 mod inbound;
-
 pub use inbound::*;
 
 mod outbound;
-
 pub use outbound::*;
 
 mod peer;
-
 pub use peer::*;
 
 use snarkos_node_executor::{spawn_task, Executor};
 use snarkos_node_messages::*;
-use snarkvm::prelude::{Field, Network, PuzzleCommitment};
+use snarkvm::prelude::{Network, PuzzleCommitment};
 
 use anyhow::Result;
 use indexmap::{IndexMap, IndexSet};
@@ -64,6 +60,9 @@ pub const ALEO_MAXIMUM_FORK_DEPTH: u32 = 4096;
 pub type RouterSender<N> = mpsc::Sender<RouterRequest<N>>;
 /// Shorthand for the child half of the `Router` channel.
 pub type RouterReceiver<N> = mpsc::Receiver<RouterRequest<N>>;
+
+/// The first-seen port number, number of attempts, and timestamp of the last inbound connection request.
+type ConnectionStats = ((u16, u32), SystemTime);
 
 /// An enum of requests that the `Router` processes.
 pub enum RouterRequest<N: Network> {
@@ -106,28 +105,29 @@ pub struct Router<N: Network> {
     /// The set of restricted peer IPs.
     restricted_peers: Arc<RwLock<IndexMap<SocketAddr, Instant>>>,
     /// The map of peers to their first-seen port number, number of attempts, and timestamp of the last inbound connection request.
-    seen_inbound_connections: Arc<RwLock<IndexMap<SocketAddr, ((u16, u32), SystemTime)>>>,
+    seen_inbound_connections: Arc<RwLock<IndexMap<SocketAddr, ConnectionStats>>>,
     /// The map of peers to the timestamp of their last outbound connection request.
     seen_outbound_connections: Arc<RwLock<IndexMap<SocketAddr, SystemTime>>>,
     /// The map of block hashes to their last seen timestamp.
-    pub seen_unconfirmed_blocks: Arc<RwLock<IndexMap<Field<N>, SystemTime>>>,
+    pub seen_inbound_blocks: Arc<RwLock<IndexMap<N::BlockHash, SystemTime>>>,
     /// The map of solution commitments to their last seen timestamp.
-    pub seen_unconfirmed_solutions: Arc<RwLock<IndexMap<PuzzleCommitment<N>, SystemTime>>>,
+    pub seen_inbound_solutions: Arc<RwLock<IndexMap<PuzzleCommitment<N>, SystemTime>>>,
     /// The map of transaction IDs to their last seen timestamp.
-    pub seen_unconfirmed_transactions: Arc<RwLock<IndexMap<N::TransactionID, SystemTime>>>,
+    pub seen_inbound_transactions: Arc<RwLock<IndexMap<N::TransactionID, SystemTime>>>,
+    /// The map of block hashes to their last seen timestamp.
+    pub seen_outbound_blocks: Arc<RwLock<IndexMap<N::BlockHash, SystemTime>>>,
+    /// The map of solution commitments to their last seen timestamp.
+    pub seen_outbound_solutions: Arc<RwLock<IndexMap<PuzzleCommitment<N>, SystemTime>>>,
+    /// The map of transaction IDs to their last seen timestamp.
+    pub seen_outbound_transactions: Arc<RwLock<IndexMap<N::TransactionID, SystemTime>>>,
 }
 
 #[rustfmt::skip]
 impl<N: Network> Router<N> {
     /// The maximum duration in seconds permitted for establishing a connection with a node, before dropping the connection.
-    const CONNECTION_TIMEOUT_IN_MILLIS: u64 = 210;
-    // 3.5 minutes
-    /// The duration in seconds after which to expire a failure from a peer.
-    const FAILURE_EXPIRY_TIME_IN_SECS: u64 = 7200;
-    // 2 hours
+    const CONNECTION_TIMEOUT_IN_MILLIS: u64 = 210; // 3.5 minutes
     /// The duration in seconds to sleep in between heartbeat executions.
-    const HEARTBEAT_IN_SECS: u64 = 9;
-    // 9 seconds
+    const HEARTBEAT_IN_SECS: u64 = 9; // 9 seconds
     /// The maximum number of candidate peers permitted to be stored in the node.
     const MAXIMUM_CANDIDATE_PEERS: usize = 10_000;
     /// The maximum number of connection failures permitted by an inbound connecting peer.
@@ -137,8 +137,7 @@ impl<N: Network> Router<N> {
     /// The minimum number of peers required to maintain connections with.
     const MINIMUM_NUMBER_OF_PEERS: usize = 1;
     /// The duration in seconds to sleep in between ping requests with a connected peer.
-    const PING_SLEEP_IN_SECS: u64 = 60;
-    // 1 minute
+    const PING_SLEEP_IN_SECS: u64 = 60; // 1 minute
     /// The duration in seconds after which a connected peer is considered inactive or
     /// disconnected if no message has been received in the meantime.
     const RADIO_SILENCE_IN_SECS: u64 = 180; // 3 minutes
@@ -153,7 +152,7 @@ impl<N: Network> Router<N> {
         // Initialize a new TCP listener at the given IP.
         let (local_ip, listener) = match TcpListener::bind(node_ip).await {
             Ok(listener) => (listener.local_addr().expect("Failed to fetch the local IP"), listener),
-            Err(error) => panic!("Failed to bind listener: {:?}. Check if another Aleo node is running", error),
+            Err(error) => panic!("Failed to bind listener: {error:?}. Check if another Aleo node is running"),
         };
 
         // Initialize an MPSC channel for sending requests to the `Router` struct.
@@ -169,15 +168,20 @@ impl<N: Network> Router<N> {
             restricted_peers: Default::default(),
             seen_inbound_connections: Default::default(),
             seen_outbound_connections: Default::default(),
-            seen_unconfirmed_blocks: Default::default(),
-            seen_unconfirmed_solutions: Default::default(),
-            seen_unconfirmed_transactions: Default::default(),
+            seen_inbound_blocks: Default::default(),
+            seen_inbound_solutions: Default::default(),
+            seen_inbound_transactions: Default::default(),
+            seen_outbound_blocks: Default::default(),
+            seen_outbound_solutions: Default::default(),
+            seen_outbound_transactions: Default::default(),
         };
 
         // Initialize the listener.
         router.initialize_listener::<E>(listener).await;
         // Initialize the heartbeat.
         router.initialize_heartbeat::<E>().await;
+        // Initialize the GC.
+        router.initialize_gc::<E>().await;
 
         Ok((router, router_receiver))
     }
@@ -326,6 +330,42 @@ impl<N: Network> Router<N> {
             }
         });
     }
+
+    /// Initialize a new instance of the garbage collector.
+    async fn initialize_gc<E: Executor>(&self) {
+        let router = self.clone();
+        spawn_task!({
+            loop {
+                // Sleep for the interval.
+                tokio::time::sleep(Duration::from_secs(Self::RADIO_SILENCE_IN_SECS)).await;
+
+                // Clear the seen unconfirmed blocks.
+                router.seen_inbound_blocks.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+                // Clear the seen unconfirmed solutions.
+                router.seen_inbound_solutions.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+                // Clear the seen unconfirmed transactions.
+                router.seen_inbound_transactions.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+                // Clear the seen unconfirmed blocks.
+                router.seen_outbound_blocks.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+                // Clear the seen unconfirmed solutions.
+                router.seen_outbound_solutions.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+                // Clear the seen unconfirmed transactions.
+                router.seen_outbound_transactions.write().await.retain(|_, timestamp| {
+                    timestamp.elapsed().unwrap_or_default().as_secs() <= Self::RADIO_SILENCE_IN_SECS
+                });
+            }
+        });
+    }
 }
 
 impl<N: Network> Router<N> {
@@ -337,8 +377,6 @@ impl<N: Network> Router<N> {
     /// Performs the given `request` to the peers.
     /// All requests must go through this `handler`, so that a unified view is preserved.
     pub(crate) async fn handler<E: Handshake + Inbound<N> + Outbound>(&self, executor: E, request: RouterRequest<N>) {
-        debug!("Peers: {:?}", self.connected_peers().await);
-
         match request {
             RouterRequest::Heartbeat => self.handle_heartbeat().await,
             RouterRequest::MessagePropagate(message, excluded_peers) => {
@@ -398,6 +436,8 @@ impl<N: Network> Router<N> {
 
     /// Handles the heartbeat request.
     async fn handle_heartbeat(&self) {
+        debug!("Peers: {:?}", self.connected_peers().await);
+
         // Obtain the number of connected peers.
         let number_of_connected_peers = self.number_of_connected_peers().await;
         // Ensure the number of connected peers is below the maximum threshold.
@@ -420,7 +460,7 @@ impl<N: Network> Router<N> {
 
             // Proceed to send disconnect requests to these peers.
             for peer_ip in peer_ips_to_disconnect {
-                info!("Disconnecting from {peer_ip} (exceeded maximum connections)");
+                info!("Disconnecting from '{peer_ip}' (exceeded maximum connections)");
                 self.handle_send(peer_ip, Message::Disconnect(DisconnectReason::TooManyPeers.into())).await;
                 // Add an entry for this `Peer` in the restricted peers.
                 self.restricted_peers.write().await.insert(peer_ip, Instant::now());
@@ -428,7 +468,7 @@ impl<N: Network> Router<N> {
         }
 
         // TODO (howardwu): This logic can be optimized and unified with the context around it.
-        // Determine if the node is connected to more sync nodes than expected.
+        // Determine if the node is connected to more sync nodes than allowed.
         let connected_beacons = self.connected_beacons().await;
         let number_of_connected_beacons = connected_beacons.len();
         let num_excess_beacons = number_of_connected_beacons.saturating_sub(1);
@@ -488,7 +528,7 @@ impl<N: Network> Router<N> {
             // }
 
             if !self.is_connected_to(peer_ip).await {
-                trace!("Attempting connection to {peer_ip}...");
+                trace!("Attempting connection to '{peer_ip}'...");
                 if let Err(error) = self.process(RouterRequest::PeerConnect(peer_ip)).await {
                     warn!("Failed to transmit the request: '{error}'");
                 }
@@ -500,19 +540,19 @@ impl<N: Network> Router<N> {
     async fn handle_peer_connect<E: Handshake>(&self, peer_ip: SocketAddr) {
         // Ensure the peer IP is not this node.
         if self.is_local_ip(&peer_ip) {
-            debug!("Skipping connection request to {peer_ip} (attempted to self-connect)");
+            debug!("Skipping connection request to '{peer_ip}' (attempted to self-connect)");
         }
         // Ensure the node does not surpass the maximum number of peer connections.
         else if self.number_of_connected_peers().await >= Self::MAXIMUM_NUMBER_OF_PEERS {
-            debug!("Skipping connection request to {peer_ip} (maximum peers reached)");
+            debug!("Skipping connection request to '{peer_ip}' (maximum peers reached)");
         }
         // Ensure the peer is a new connection.
         else if self.is_connected_to(peer_ip).await {
-            debug!("Skipping connection request to {peer_ip} (already connected)");
+            debug!("Skipping connection request to '{peer_ip}' (already connected)");
         }
         // Ensure the peer is not restricted.
         else if self.is_restricted(peer_ip).await {
-            debug!("Skipping connection request to {peer_ip} (restricted)");
+            debug!("Skipping connection request to '{peer_ip}' (restricted)");
         }
         // Attempt to open a TCP stream.
         else {
@@ -523,9 +563,9 @@ impl<N: Network> Router<N> {
             let last_seen = seen_outbound_connections.entry(peer_ip).or_insert(SystemTime::UNIX_EPOCH);
             let elapsed = last_seen.elapsed().unwrap_or(Duration::MAX).as_secs();
             if elapsed < Self::RADIO_SILENCE_IN_SECS {
-                trace!("Skipping connection request to {peer_ip} (tried {elapsed} secs ago)");
+                trace!("Skipping connection request to '{peer_ip}' (tried {elapsed} secs ago)");
             } else {
-                debug!("Connecting to {peer_ip}...");
+                debug!("Connecting to '{peer_ip}'...");
                 // Update the last seen timestamp for this peer.
                 seen_outbound_connections.insert(peer_ip, SystemTime::now());
 
@@ -563,19 +603,19 @@ impl<N: Network> Router<N> {
     async fn handle_peer_connecting<E: Handshake>(&self, stream: TcpStream, peer_ip: SocketAddr) {
         // Ensure the peer IP is not this node.
         if self.is_local_ip(&peer_ip) {
-            debug!("Dropping connection request from {peer_ip} (attempted to self-connect)");
+            debug!("Dropping connection request from '{peer_ip}' (attempted to self-connect)");
         }
         // Ensure the node does not surpass the maximum number of peer connections.
         else if self.number_of_connected_peers().await >= Self::MAXIMUM_NUMBER_OF_PEERS {
-            debug!("Dropping connection request from {peer_ip} (maximum peers reached)");
+            debug!("Dropping connection request from '{peer_ip}' (maximum peers reached)");
         }
         // Ensure the node is not already connected to this peer.
         else if self.is_connected_to(peer_ip).await {
-            debug!("Dropping connection request from {peer_ip} (already connected)");
+            debug!("Dropping connection request from '{peer_ip}' (already connected)");
         }
         // Ensure the peer is not restricted.
         else if self.is_restricted(peer_ip).await {
-            debug!("Dropping connection request from {peer_ip} (restricted)");
+            debug!("Dropping connection request from '{peer_ip}' (restricted)");
         }
         // Spawn a handler to be run asynchronously.
         else {
@@ -607,11 +647,11 @@ impl<N: Network> Router<N> {
 
             // Ensure the connecting peer has not surpassed the connection attempt limit.
             if *num_attempts > Self::MAXIMUM_CONNECTION_FAILURES {
-                trace!("Dropping connection request from {peer_ip} (tried {elapsed} secs ago)");
+                trace!("Dropping connection request from '{peer_ip}' (tried {elapsed} secs ago)");
                 // Add an entry for this `Peer` in the restricted peers.
                 self.restricted_peers.write().await.insert(peer_ip, Instant::now());
             } else {
-                debug!("Received a connection request from {peer_ip}");
+                debug!("Received a connection request from '{peer_ip}'");
                 // Update the number of attempts for this peer.
                 *num_attempts += 1;
 
@@ -642,7 +682,7 @@ impl<N: Network> Router<N> {
             // Retrieve the peer IP.
             let peer_ip = *peer.ip();
 
-            info!("Connected to {peer_ip}");
+            info!("Connected to '{peer_ip}'");
 
             // Process incoming messages until this stream is disconnected.
             let executor_clone = executor.clone();
@@ -657,7 +697,7 @@ impl<N: Network> Router<N> {
                             break;
                         }
 
-                        executor_clone.outbound(&peer, message, &mut outbound_socket).await
+                        executor_clone.outbound(&peer, message, &router, &mut outbound_socket).await
                     },
                     result = outbound_socket.next() => match result {
                         // Received a message from the peer.
@@ -666,7 +706,7 @@ impl<N: Network> Router<N> {
                             let last_seen_elapsed = peer.last_seen.read().await.elapsed().as_secs();
                             match last_seen_elapsed > Self::RADIO_SILENCE_IN_SECS {
                                 true => {
-                                    warn!("Failed to receive a message from {peer_ip} in {last_seen_elapsed} seconds");
+                                    warn!("Failed to receive a message from '{peer_ip}' in {last_seen_elapsed} seconds");
                                     break;
                                 }
                                 // Update the last seen timestamp.
@@ -675,9 +715,9 @@ impl<N: Network> Router<N> {
 
                             // Update the timestamp for the received message.
                             peer.seen_messages.write().await.insert((message.id(), rand::thread_rng().gen()), SystemTime::now());
-                            // Drop the peer, if they have sent more than 1000 messages in the last 5 seconds.
+                            // Drop the peer, if they have sent more than 500 messages in the last 5 seconds.
                             let frequency = peer.seen_messages.read().await.values().filter(|t| t.elapsed().unwrap_or_default().as_secs() <= 5).count();
-                            if frequency >= 1000 {
+                            if frequency >= 500 {
                                 warn!("Dropping {peer_ip} for spamming messages (frequency = {frequency})");
                                 // Send a `PeerRestricted` message.
                                 if let Err(error) = router.process(RouterRequest::PeerRestricted(peer_ip)).await {
@@ -690,12 +730,12 @@ impl<N: Network> Router<N> {
                             let success = executor_clone.inbound(&peer, message, &router).await;
                             // Disconnect if the peer violated the protocol.
                             if !success {
-                                warn!("Disconnecting from {peer_ip} (violated protocol)");
+                                warn!("Disconnecting from '{peer_ip}' (violated protocol)");
                                 break;
                             }
                         },
                         // An error occurred.
-                        Some(Err(error)) => error!("Failed to read message from {peer_ip}: {error}"),
+                        Some(Err(error)) => error!("Failed to read message from '{peer_ip}': {error}"),
                         // The stream has been disconnected.
                         None => break,
                     },
@@ -721,7 +761,7 @@ impl<N: Network> Router<N> {
         match target_peer {
             Some(peer) => {
                 if let Err(error) = peer.send(message).await {
-                    trace!("Failed to send message to {peer_ip}: {error}");
+                    trace!("Failed to send message to '{peer_ip}': {error}");
                     self.connected_peers.write().await.remove(&peer_ip);
                 }
             }
@@ -733,11 +773,26 @@ impl<N: Network> Router<N> {
     async fn handle_propagate(&self, mut message: Message<N>, excluded_peers: Vec<SocketAddr>) {
         // Perform ahead-of-time, non-blocking serialization just once for applicable objects.
         if let Message::UnconfirmedBlock(ref mut message) = message {
-            let serialized_block = Data::serialize(message.block.clone()).await.expect("Block serialization is bugged");
-            let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
+            if let Ok(serialized_block) = Data::serialize(message.block.clone()).await {
+                let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
+            } else {
+                error!("Block serialization is bugged");
+            }
+        } else if let Message::UnconfirmedSolution(ref mut message) = message {
+            if let Ok(serialized_solution) = Data::serialize(message.solution.clone()).await {
+                let _ = std::mem::replace(&mut message.solution, Data::Buffer(serialized_solution));
+            } else {
+                error!("Solution serialization is bugged");
+            }
+        } else if let Message::UnconfirmedTransaction(ref mut message) = message {
+            if let Ok(serialized_transaction) = Data::serialize(message.transaction.clone()).await {
+                let _ = std::mem::replace(&mut message.transaction, Data::Buffer(serialized_transaction));
+            } else {
+                error!("Transaction serialization is bugged");
+            }
         }
 
-        // Iterate through all peers that are not the sender.
+        // Iterate through all peers that are not the sender and excluded peers.
         for peer in self
             .connected_peers()
             .await
@@ -752,7 +807,7 @@ impl<N: Network> Router<N> {
     ///
     /// This method skips adding any given peers if the combined size exceeds the threshold,
     /// as the peer providing this list could be subverting the protocol.
-    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item=&'a SocketAddr> + IntoIterator>(&self, peers: T) {
+    async fn add_candidate_peers<'a, T: ExactSizeIterator<Item = &'a SocketAddr> + IntoIterator>(&self, peers: T) {
         // Acquire the candidate peers write lock.
         let mut candidate_peers = self.candidate_peers.write().await;
         // Ensure the combined number of peers does not surpass the threshold.

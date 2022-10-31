@@ -16,7 +16,7 @@
 
 use super::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChallengeResponse<N: Network> {
     pub header: Data<Header<N>>,
 }
@@ -31,7 +31,7 @@ impl<N: Network> MessageTrait for ChallengeResponse<N> {
     /// Serializes the message into the buffer.
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
-        Ok(self.header.serialize_blocking_into(writer)?)
+        self.header.serialize_blocking_into(writer)
     }
 
     /// Deserializes the given buffer into a message.

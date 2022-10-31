@@ -31,6 +31,7 @@ pub trait Outbound {
         &self,
         peer: &Peer<N>,
         mut message: Message<N>,
+        router: &Router<N>,
         outbound_socket: &mut Framed<TcpStream, MessageCodec<N>>,
     ) {
         // Retrieve the peer IP.
@@ -40,115 +41,102 @@ pub trait Outbound {
         let is_ready_to_send = match message {
             Message::PuzzleResponse(ref mut message) => {
                 // Perform non-blocking serialization of the block (if it hasn't been serialized yet).
-                let serialized_block =
-                    Data::serialize(message.block.clone()).await.expect("Block serialization is bugged");
-                let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
-
-                true
+                if let Ok(serialized_block) = Data::serialize(message.block.clone()).await {
+                    let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
+                    true
+                } else {
+                    error!("Puzzle serialization is bugged");
+                    false
+                }
             }
             Message::UnconfirmedBlock(ref mut message) => {
                 // do not send UnconfirmedBlock to pool server
                 if peer.node_type.read().await.is_pool_server() {
                     return;
                 }
-                // Retrieve the last seen timestamp of this block for this peer.
-                let last_seen = peer
-                    .seen_outbound_blocks
-                    .write()
-                    .await
-                    .entry(message.block_hash)
-                    .or_insert(SystemTime::UNIX_EPOCH)
-                    .elapsed()
-                    .unwrap()
-                    .as_secs();
-                let is_ready_to_send = last_seen > Router::<N>::RADIO_SILENCE_IN_SECS;
+                let block_height = message.block_height;
+                let block_hash = message.block_hash;
 
-                // Update the timestamp for the peer and sent block.
-                peer.seen_outbound_blocks.write().await.insert(message.block_hash, SystemTime::now());
-                // Report the unconfirmed block height.
-                if is_ready_to_send {
-                    trace!("Preparing to send 'UnconfirmedBlock {}' to {peer_ip}", message.block_height);
+                // Update the timestamp for the unconfirmed block.
+                let seen_before =
+                    router.seen_outbound_blocks.write().await.insert(block_hash, SystemTime::now()).is_some();
+
+                // Determine whether to send the block.
+                let mut should_send = !seen_before;
+
+                if should_send {
+                    trace!("Preparing 'UnconfirmedBlock {block_height}' for '{peer_ip}'");
+
+                    // Perform non-blocking serialization of the block (if it hasn't been serialized yet).
+                    if let Ok(serialized_block) = Data::serialize(message.block.clone()).await {
+                        let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
+                    } else {
+                        error!("Block serialization is bugged");
+                        should_send = false;
+                    }
                 }
-
-                // Perform non-blocking serialization of the block (if it hasn't been serialized yet).
-                let serialized_block =
-                    Data::serialize(message.block.clone()).await.expect("Block serialization is bugged");
-                let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
-
-                is_ready_to_send
+                should_send
             }
             Message::UnconfirmedSolution(ref mut message) => {
-                let solution_commitment = if let Data::Object(solution) = &message.solution {
-                    solution.commitment()
-                } else {
-                    panic!("Logic error: the solution shouldn't have been serialized yet.");
-                };
-
-                // Retrieve the last seen timestamp of this solution for this peer.
-                let last_seen = peer
-                    .seen_outbound_solutions
-                    .write()
-                    .await
-                    .entry(solution_commitment)
-                    .or_insert(SystemTime::UNIX_EPOCH)
-                    .elapsed()
-                    .unwrap()
-                    .as_secs();
-                let is_ready_to_send = last_seen > Router::<N>::RADIO_SILENCE_IN_SECS;
-
-                // Update the timestamp for the peer and sent solution.
-                peer.seen_outbound_solutions.write().await.insert(solution_commitment, SystemTime::now());
-                // Report the unconfirmed block height.
-                if is_ready_to_send {
-                    trace!("Preparing to send 'UnconfirmedSolution {}' to {peer_ip}", solution_commitment.0);
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
                 }
+                let puzzle_commitment = message.puzzle_commitment;
 
-                // Perform non-blocking serialization of the solution.
-                let serialized_solution =
-                    Data::serialize(message.solution.clone()).await.expect("Solution serialization is bugged");
-                let _ = std::mem::replace(&mut message.solution, Data::Buffer(serialized_solution));
+                // Update the timestamp for the unconfirmed solution.
+                let seen_before =
+                    router.seen_outbound_solutions.write().await.insert(puzzle_commitment, SystemTime::now()).is_some();
 
-                is_ready_to_send
+                // Determine whether to send the solution.
+                let mut should_send = !seen_before;
+
+                if should_send {
+                    trace!("Preparing 'UnconfirmedSolution' for '{peer_ip}'");
+
+                    // Perform non-blocking serialization of the solution (if it hasn't been serialized yet).
+                    if let Ok(serialized_solution) = Data::serialize(message.solution.clone()).await {
+                        let _ = std::mem::replace(&mut message.solution, Data::Buffer(serialized_solution));
+                    } else {
+                        error!("Solution serialization is bugged");
+                        should_send = false;
+                    }
+                }
+                should_send
             }
             Message::UnconfirmedTransaction(ref mut message) => {
-                let transaction_id = if let Data::Object(transaction) = &message.transaction {
-                    transaction.id()
-                } else {
-                    panic!("Logic error: the transaction shouldn't have been serialized yet.");
-                };
-
-                // Retrieve the last seen timestamp of this transaction for this peer.
-                let last_seen = peer
-                    .seen_outbound_transactions
-                    .write()
-                    .await
-                    .entry(transaction_id)
-                    .or_insert(SystemTime::UNIX_EPOCH)
-                    .elapsed()
-                    .unwrap()
-                    .as_secs();
-                let is_ready_to_send = last_seen > Router::<N>::RADIO_SILENCE_IN_SECS;
-
-                // Update the timestamp for the peer and sent transaction.
-                peer.seen_outbound_transactions.write().await.insert(transaction_id, SystemTime::now());
-                // Report the unconfirmed block height.
-                if is_ready_to_send {
-                    trace!("Preparing to send 'UnconfirmedTransaction {transaction_id}' to {peer_ip}");
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
                 }
+                let transaction_id = message.transaction_id;
 
-                // Perform non-blocking serialization of the transaction.
-                let serialized_transaction =
-                    Data::serialize(message.transaction.clone()).await.expect("Transaction serialization is bugged");
-                let _ = std::mem::replace(&mut message.transaction, Data::Buffer(serialized_transaction));
+                // Update the timestamp for the unconfirmed transaction.
+                let seen_before =
+                    router.seen_outbound_transactions.write().await.insert(transaction_id, SystemTime::now()).is_some();
 
-                is_ready_to_send
+                // Determine whether to send the transaction.
+                let mut should_send = !seen_before;
+
+                if should_send {
+                    trace!("Preparing 'UnconfirmedTransaction {transaction_id}' for '{peer_ip}'");
+
+                    // Perform non-blocking serialization of the transaction (if it hasn't been serialized yet).
+                    if let Ok(serialized_transaction) = Data::serialize(message.transaction.clone()).await {
+                        let _ = std::mem::replace(&mut message.transaction, Data::Buffer(serialized_transaction));
+                    } else {
+                        error!("Transaction serialization is bugged");
+                        should_send = false;
+                    }
+                }
+                should_send
             }
             _ => true,
         };
 
         // Send the message, if it is ready.
         if is_ready_to_send {
-            trace!("Sending '{}' to {peer_ip}", message.name());
+            trace!("Sending '{}' to '{peer_ip}'", message.name());
             // Route the message to the peer.
             if let Err(error) = outbound_socket.send(message).await {
                 warn!("[OutboundRouter] {error}");

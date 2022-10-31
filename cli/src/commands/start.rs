@@ -84,8 +84,7 @@ impl Start {
                     // Parse the node from the configurations.
                     let node = cli.parse_node::<Testnet3>().await.expect("Failed to parse the node");
                     // Initialize the display.
-                    let _ =
-                        Display::start(node, cli.verbosity, cli.nodisplay).expect("Failed to initialize the display");
+                    Display::start(node, cli.verbosity, cli.nodisplay).expect("Failed to initialize the display");
                 }
                 _ => panic!("Invalid network ID specified"),
             };
@@ -167,14 +166,12 @@ impl Start {
                 sample_account(&mut self.beacon, true)?;
             }
             // If the node type flag is set, but no private key is provided, then sample one.
-            else {
-                if let Some("") = self.validator.as_ref().map(|s| s.as_str()) {
-                    sample_account(&mut self.validator, false)?;
-                } else if let Some("") = self.prover.as_ref().map(|s| s.as_str()) {
-                    sample_account(&mut self.prover, false)?;
-                } else if let Some("") = self.client.as_ref().map(|s| s.as_str()) {
-                    sample_account(&mut self.client, false)?;
-                }
+            else if let Some("") = self.validator.as_deref() {
+                sample_account(&mut self.validator, false)?;
+            } else if let Some("") = self.prover.as_deref() {
+                sample_account(&mut self.prover, false)?;
+            } else if let Some("") = self.client.as_deref() {
+                sample_account(&mut self.client, false)?;
             }
 
             Ok(Some(genesis))
@@ -221,7 +218,8 @@ impl Start {
         //     (num_cpus::get(), 512, num_cpus::get()) // 512 is tokio's current default
         // };
         let (num_tokio_worker_threads, max_tokio_blocking_threads, num_rayon_cores_global) =
-            { ((num_cpus::get() / 8 * 2).max(1), num_cpus::get(), (num_cpus::get() / 8 * 5).max(1)) };
+            // { ((num_cpus::get() / 2).max(1), num_cpus::get(), (num_cpus::get() / 4 * 3).max(1)) };
+            { (num_cpus::get(), 512, num_cpus::get()) };
 
         // Initialize the parallelization parameters.
         rayon::ThreadPoolBuilder::new()

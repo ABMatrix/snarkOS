@@ -84,7 +84,17 @@ pub use new_epoch_challenge::NewEpochChallenge;
 
 
 use snarkos_node_executor::{NodeType, Status};
-use snarkvm::prelude::{Block, EpochChallenge, FromBytes, Header, Network, ProverSolution, ToBytes, Transaction};
+use snarkvm::prelude::{
+    Block,
+    EpochChallenge,
+    FromBytes,
+    Header,
+    Network,
+    ProverSolution,
+    PuzzleCommitment,
+    ToBytes,
+    Transaction,
+};
 
 use ::bytes::{Buf, BytesMut};
 use anyhow::{bail, Result};
@@ -101,7 +111,7 @@ pub trait MessageTrait {
             Self: Sized;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message<N: Network> {
     BlockRequest(BlockRequest),
     BlockResponse(BlockResponse<N>),
