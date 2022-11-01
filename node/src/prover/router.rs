@@ -77,7 +77,7 @@ impl<N: Network> Inbound<N> for Prover<N> {
         seen_before: bool,
     ) -> bool {
         // Determine whether to propagate the solution.
-        if !seen_before {
+        if seen_before {
             trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
         } else if let Some(block) = self.latest_block.read().await.as_ref() {
             // Compute the elapsed time since the last coinbase block.
