@@ -46,6 +46,7 @@ impl<N: Network> Inbound<N> for Prover<N> {
 
                 if let Err(e) = router
                     .process(RouterRequest::SendNewEpochChallenge(Message::NewEpochChallenge(NewEpochChallenge {
+                        block_height,
                         proof_target: block.proof_target(),
                         address,
                         epoch_challenge,

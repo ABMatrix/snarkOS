@@ -19,6 +19,7 @@ use snarkvm::prelude::Address;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewEpochChallenge<N: Network> {
+    pub block_height: u32,
     pub proof_target: u64,
     pub address: Address<N>,
     pub epoch_challenge: EpochChallenge<N>,
@@ -34,6 +35,7 @@ impl<N: Network> MessageTrait for NewEpochChallenge<N> {
     /// Serializes the message into the buffer.
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+        writer.write_all(&self.block_height.to_le_bytes())?;
         writer.write_all(&self.proof_target.to_le_bytes())?;
         writer.write_all(&self.address.to_bytes_le()?)?;
         writer.write_all(&self.epoch_challenge.to_bytes_le()?)?;
@@ -45,6 +47,7 @@ impl<N: Network> MessageTrait for NewEpochChallenge<N> {
     fn deserialize(bytes: BytesMut) -> Result<Self> {
         let mut reader = bytes.reader();
         Ok(Self {
+            block_height: bincode::deserialize_from(&mut reader)?,
             proof_target: bincode::deserialize_from(&mut reader)?,
             address: bincode::deserialize_from(&mut reader)?,
             epoch_challenge: EpochChallenge::read_le(&mut reader)?,
