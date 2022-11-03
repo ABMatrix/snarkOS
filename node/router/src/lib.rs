@@ -54,7 +54,7 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::Framed;
 
 // TODO (raychu86): Move this declaration.
-const ALEO_MAXIMUM_FORK_DEPTH: u32 = 4096;
+pub const ALEO_MAXIMUM_FORK_DEPTH: u32 = 4096;
 
 /// Shorthand for the parent half of the `Router` channel.
 pub type RouterSender<N> = mpsc::Sender<RouterRequest<N>>;
@@ -86,6 +86,8 @@ pub enum RouterRequest<N: Network> {
     SendPeerResponse(SocketAddr),
     /// ReceivePeerResponse := (\[peer_ip\])
     ReceivePeerResponse(Vec<SocketAddr>),
+    /// SendNewEpochChallenge := (new_epoch_challenge_msg)
+    SendNewEpochChallenge(Message<N>),
 }
 
 #[derive(Clone, Debug)]
@@ -215,6 +217,17 @@ impl<N: Network> Router<N> {
     /// Returns the list of connected peers.
     pub async fn connected_peers(&self) -> Vec<SocketAddr> {
         self.connected_peers.read().await.keys().copied().collect()
+    }
+
+    /// Returns the list of connected pool servers.
+    pub async fn connected_pool_servers(&self) -> Vec<SocketAddr> {
+        let mut connected_pool_servers = Vec::new();
+        for (ip, peer) in self.connected_peers.read().await.iter() {
+            if peer.node_type().await.is_pool_server() {
+                connected_pool_servers.push(*ip);
+            }
+        }
+        connected_pool_servers
     }
 
     /// Returns the list of connected peers that are beacons.
@@ -400,6 +413,22 @@ impl<N: Network> Router<N> {
             RouterRequest::ReceivePeerResponse(peer_ips) => {
                 self.add_candidate_peers(peer_ips.iter()).await;
             }
+            RouterRequest::SendNewEpochChallenge(new_epoch_challenge_msg) => match new_epoch_challenge_msg {
+                Message::NewEpochChallenge(challenge) => {
+                    let pool_servers = self.connected_pool_servers().await;
+                    let message = Message::NewEpochChallenge(challenge);
+                    for server in pool_servers {
+                        let router = self.clone();
+                        let message = message.clone();
+                        spawn_task!(E::resources().procure_id(), {
+                            router.handle_send(server, message).await;
+                        });
+                    }
+                }
+                msg => {
+                    warn!("unsupported message {} of SendNewEpochChallenge", msg.name())
+                }
+            },
         }
     }
 

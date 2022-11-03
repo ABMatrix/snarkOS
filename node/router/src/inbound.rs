@@ -35,7 +35,7 @@ pub trait Inbound<N: Network>: Executor {
         match message {
             Message::BlockRequest(message) => Self::block_request(message, peer_ip).await,
             Message::BlockResponse(message) => Self::block_response(message, peer_ip).await,
-            Message::ChallengeRequest(..) | Message::ChallengeResponse(..) => {
+            Message::ChallengeRequest(..) | Message::ChallengeResponse(..) | Message::NewEpochChallenge(..) => {
                 // Peer is not following the protocol.
                 warn!("Peer {peer_ip} is not following the protocol");
                 false

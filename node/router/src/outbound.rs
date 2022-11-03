@@ -19,6 +19,7 @@ use snarkos_node_messages::{Data, Message, MessageCodec};
 use snarkvm::prelude::Network;
 
 use futures::SinkExt;
+use snarkos_node_executor::NodeType;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
@@ -49,6 +50,10 @@ pub trait Outbound {
                 }
             }
             Message::UnconfirmedBlock(ref mut message) => {
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
+                }
                 let block_height = message.block_height;
                 let block_hash = message.block_hash;
 
@@ -73,6 +78,10 @@ pub trait Outbound {
                 should_send
             }
             Message::UnconfirmedSolution(ref mut message) => {
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
+                }
                 let puzzle_commitment = message.puzzle_commitment;
 
                 // Update the timestamp for the unconfirmed solution.
@@ -96,6 +105,10 @@ pub trait Outbound {
                 should_send
             }
             Message::UnconfirmedTransaction(ref mut message) => {
+                // do not send UnconfirmedBlock to pool server
+                if peer.node_type.read().await.is_pool_server() {
+                    return;
+                }
                 let transaction_id = message.transaction_id;
 
                 // Update the timestamp for the unconfirmed transaction.

@@ -15,7 +15,9 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
+use snarkos_node_messages::{ChallengeRequest, NewEpochChallenge};
 use snarkvm::prelude::{ProverSolution, PuzzleCommitment};
+use tokio::task;
 
 #[async_trait]
 impl<N: Network> Handshake for Prover<N> {}
@@ -33,11 +35,27 @@ impl<N: Network> Inbound<N> for Prover<N> {
                 let block_height = block.height();
 
                 // Save the latest epoch challenge in the prover.
-                self.latest_epoch_challenge.write().await.replace(epoch_challenge);
+                self.latest_epoch_challenge.write().await.replace(epoch_challenge.clone());
                 // Save the latest block in the prover.
-                self.latest_block.write().await.replace(block);
+                self.latest_block.write().await.replace(block.clone());
 
                 trace!("Received 'PuzzleResponse' from '{peer_ip}' (Epoch {epoch_number}, Block {block_height})");
+
+                let router = self.router.clone();
+                let address = self.account.address().clone();
+
+                if let Err(e) = router
+                    .process(RouterRequest::SendNewEpochChallenge(Message::NewEpochChallenge(NewEpochChallenge {
+                        block_height,
+                        proof_target: block.proof_target(),
+                        address,
+                        epoch_challenge,
+                    })))
+                    .await
+                {
+                    warn!("[puzzle_response] {}", e);
+                }
+
                 true
             }
             Err(error) => {
@@ -60,17 +78,27 @@ impl<N: Network> Inbound<N> for Prover<N> {
         seen_before: bool,
     ) -> bool {
         // Determine whether to propagate the solution.
-        if !seen_before {
-            trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
-        } else if let Some(block) = self.latest_block.read().await.as_ref() {
-            // Compute the elapsed time since the last coinbase block.
-            let elapsed = OffsetDateTime::now_utc().unix_timestamp().saturating_sub(block.last_coinbase_timestamp());
-            // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
-            if elapsed > N::ANCHOR_TIME as i64 * 6 {
-                // Propagate the `UnconfirmedSolution`.
-                let request = RouterRequest::MessagePropagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
-                if let Err(error) = router.process(request).await {
-                    warn!("[UnconfirmedSolution] {error}");
+        if self.router.connected_pool_servers().await.contains(&peer_ip) {
+            // Propagate the "UnconfirmedSolution" to the network.
+            let message = Message::UnconfirmedSolution(message);
+            let request = RouterRequest::MessagePropagate(message, vec![peer_ip]);
+            if let Err(error) = self.router.process(request).await {
+                warn!("[UnconfirmedSolution] {error}");
+            }
+        } else {
+            if !seen_before {
+                trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
+            } else if let Some(block) = self.latest_block.read().await.as_ref() {
+                // Compute the elapsed time since the last coinbase block.
+                let elapsed =
+                    OffsetDateTime::now_utc().unix_timestamp().saturating_sub(block.last_coinbase_timestamp());
+                // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
+                if elapsed > N::ANCHOR_TIME as i64 * 6 {
+                    // Propagate the `UnconfirmedSolution`.
+                    let request = RouterRequest::MessagePropagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
+                    if let Err(error) = router.process(request).await {
+                        warn!("[UnconfirmedSolution] {error}");
+                    }
                 }
             }
         }

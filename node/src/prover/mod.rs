@@ -67,7 +67,7 @@ impl<N: Network> Prover<N> {
         // Initialize the heartbeat.
         node.initialize_heartbeat().await;
         // Initialize the coinbase puzzle.
-        node.initialize_coinbase_puzzle().await;
+        // node.initialize_coinbase_puzzle().await;
         // Initialize the signal handler.
         node.handle_signals();
         // Return the node.
