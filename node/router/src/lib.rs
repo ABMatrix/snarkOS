@@ -33,14 +33,15 @@ pub use outbound::*;
 mod peer;
 pub use peer::*;
 
-use snarkos_node_executor::{spawn_task, Executor};
+use snarkos_node_executor::{spawn_task, spawn_task_loop, Executor};
 use snarkos_node_messages::*;
-use snarkvm::prelude::{Network, PuzzleCommitment};
+use snarkvm::prelude::{Address, Network, PuzzleCommitment};
 
 use anyhow::Result;
 use indexmap::{IndexMap, IndexSet};
 use rand::{prelude::IteratorRandom, rngs::OsRng, Rng};
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
@@ -70,6 +71,8 @@ pub enum RouterRequest<N: Network> {
     Heartbeat,
     /// MessagePropagate := (message, \[ excluded_peers \])
     MessagePropagate(Message<N>, Vec<SocketAddr>),
+    /// MessagePropagateBeacon := (message, \[ excluded_beacons \])
+    MessagePropagateBeacon(Message<N>, Vec<SocketAddr>),
     /// MessageSend := (peer_ip, message)
     MessageSend(SocketAddr, Message<N>),
     /// PeerConnect := (peer_ip)
@@ -96,6 +99,8 @@ pub struct Router<N: Network> {
     router_sender: RouterSender<N>,
     /// The local IP of the node.
     local_ip: SocketAddr,
+    /// The address of the node.
+    address: Address<N>,
     /// The set of trusted peers.
     trusted_peers: Arc<IndexSet<SocketAddr>>,
     /// The map of connected peer IPs to their peer handlers.
@@ -147,6 +152,7 @@ impl<N: Network> Router<N> {
     /// Initializes a new `Router` instance.
     pub async fn new<E: Handshake + Inbound<N> + Outbound>(
         node_ip: SocketAddr,
+        address: Address<N>,
         trusted_peers: &[SocketAddr],
     ) -> Result<(Self, RouterReceiver<N>)> {
         // Initialize a new TCP listener at the given IP.
@@ -162,6 +168,7 @@ impl<N: Network> Router<N> {
         let router = Self {
             router_sender,
             local_ip,
+            address,
             trusted_peers: Arc::new(trusted_peers.iter().copied().collect()),
             connected_peers: Default::default(),
             candidate_peers: Default::default(),
@@ -180,6 +187,8 @@ impl<N: Network> Router<N> {
         router.initialize_listener::<E>(listener).await;
         // Initialize the heartbeat.
         router.initialize_heartbeat::<E>().await;
+        // Initialize the report.
+        router.initialize_report::<E>().await;
         // Initialize the GC.
         router.initialize_gc::<E>().await;
 
@@ -275,12 +284,12 @@ impl<N: Network> Router<N> {
         mut router_receiver: RouterReceiver<N>,
     ) {
         let router = self.clone();
-        spawn_task!({
+        spawn_task_loop!(E, {
             // Asynchronously wait for a router request.
             while let Some(request) = router_receiver.recv().await {
                 let router = router.clone();
                 let executor_clone = executor.clone();
-                spawn_task!(E::resources().procure_id(), {
+                spawn_task!(E, {
                     // Update the router.
                     router.handler::<E>(executor_clone, request).await;
                 });
@@ -291,7 +300,7 @@ impl<N: Network> Router<N> {
     /// Initialize the connection listener for new peers.
     async fn initialize_listener<E: Executor>(&self, listener: TcpListener) {
         let router = self.clone();
-        spawn_task!({
+        spawn_task_loop!(E, {
             info!("Listening for peers at {}", router.local_ip);
             loop {
                 // Don't accept connections if the node is breaching the configured peer limit.
@@ -319,7 +328,7 @@ impl<N: Network> Router<N> {
     /// Initialize a new instance of the heartbeat.
     async fn initialize_heartbeat<E: Executor>(&self) {
         let router = self.clone();
-        spawn_task!({
+        spawn_task_loop!(E, {
             loop {
                 // Transmit a heartbeat request to the router.
                 if let Err(error) = router.process(RouterRequest::Heartbeat).await {
@@ -331,10 +340,30 @@ impl<N: Network> Router<N> {
         });
     }
 
+    /// Initialize a new instance of the report.
+    async fn initialize_report<E: Executor>(&self) {
+        let router = self.clone();
+        spawn_task_loop!(E, {
+            let url = "https://vm.aleo.org/testnet3/report";
+            loop {
+                // Prepare the report.
+                let mut report = HashMap::new();
+                report.insert("node_address".to_string(), router.address.to_string());
+                report.insert("node_type".to_string(), E::node_type().to_string());
+                // Transmit the report.
+                if reqwest::Client::new().post(url).json(&report).send().await.is_err() {
+                    warn!("Failed to send report");
+                }
+                // Sleep for a fixed duration in seconds.
+                tokio::time::sleep(Duration::from_secs(3600 * 6)).await;
+            }
+        });
+    }
+
     /// Initialize a new instance of the garbage collector.
     async fn initialize_gc<E: Executor>(&self) {
         let router = self.clone();
-        spawn_task!({
+        spawn_task_loop!(E, {
             loop {
                 // Sleep for the interval.
                 tokio::time::sleep(Duration::from_secs(Self::RADIO_SILENCE_IN_SECS)).await;
@@ -382,6 +411,9 @@ impl<N: Network> Router<N> {
             RouterRequest::MessagePropagate(message, excluded_peers) => {
                 self.handle_propagate(message, excluded_peers).await
             }
+            RouterRequest::MessagePropagateBeacon(message, excluded_beacons) => {
+                self.handle_propagate_beacon(message, excluded_beacons).await
+            }
             RouterRequest::MessageSend(sender, message) => self.handle_send(sender, message).await,
             RouterRequest::PeerConnect(peer_ip) => self.handle_peer_connect::<E>(peer_ip).await,
             RouterRequest::PeerConnecting(stream, peer_ip) => self.handle_peer_connecting::<E>(stream, peer_ip).await,
@@ -420,7 +452,7 @@ impl<N: Network> Router<N> {
                     for server in pool_servers {
                         let router = self.clone();
                         let message = message.clone();
-                        spawn_task!(E::resources().procure_id(), {
+                        spawn_task!(E, {
                             router.handle_send(server, message).await;
                         });
                     }
@@ -577,7 +609,7 @@ impl<N: Network> Router<N> {
                     Ok(stream) => match stream {
                         Ok(stream) => {
                             let router = self.clone();
-                            spawn_task!(E::resources().procure_id(), {
+                            spawn_task!(E, {
                                 if let Err(error) = E::handshake(router, stream).await {
                                     trace!("{error}");
                                 }
@@ -658,7 +690,7 @@ impl<N: Network> Router<N> {
 
                 // Initialize the peer handler.
                 let router = self.clone();
-                spawn_task!(E::resources().procure_id(), {
+                spawn_task!(E, {
                     if let Err(error) = E::handshake(router, stream).await {
                         trace!("{error}");
                     }
@@ -676,7 +708,7 @@ impl<N: Network> Router<N> {
         mut peer_handler: PeerHandler<N>,
     ) {
         let router = self.clone();
-        spawn_task!(E::resources().procure_id(), {
+        spawn_task_loop!(E, {
             // Retrieve the peer IP.
             let peer_ip = *peer.ip();
 
@@ -796,6 +828,40 @@ impl<N: Network> Router<N> {
             .await
             .iter()
             .filter(|peer_ip| !self.is_local_ip(peer_ip) && !excluded_peers.contains(peer_ip))
+        {
+            self.handle_send(*peer, message.clone()).await;
+        }
+    }
+
+    /// Sends the given message to every connected beacon, excluding the sender and any specified beacon IPs.
+    async fn handle_propagate_beacon(&self, mut message: Message<N>, excluded_beacons: Vec<SocketAddr>) {
+        // Perform ahead-of-time, non-blocking serialization just once for applicable objects.
+        if let Message::UnconfirmedBlock(ref mut message) = message {
+            if let Ok(serialized_block) = Data::serialize(message.block.clone()).await {
+                let _ = std::mem::replace(&mut message.block, Data::Buffer(serialized_block));
+            } else {
+                error!("Block serialization is bugged");
+            }
+        } else if let Message::UnconfirmedSolution(ref mut message) = message {
+            if let Ok(serialized_solution) = Data::serialize(message.solution.clone()).await {
+                let _ = std::mem::replace(&mut message.solution, Data::Buffer(serialized_solution));
+            } else {
+                error!("Solution serialization is bugged");
+            }
+        } else if let Message::UnconfirmedTransaction(ref mut message) = message {
+            if let Ok(serialized_transaction) = Data::serialize(message.transaction.clone()).await {
+                let _ = std::mem::replace(&mut message.transaction, Data::Buffer(serialized_transaction));
+            } else {
+                error!("Transaction serialization is bugged");
+            }
+        }
+
+        // Iterate through all beacons that are not the sender and excluded beacons.
+        for peer in self
+            .connected_beacons()
+            .await
+            .iter()
+            .filter(|peer_ip| !self.is_local_ip(peer_ip) && !excluded_beacons.contains(peer_ip))
         {
             self.handle_send(*peer, message.clone()).await;
         }

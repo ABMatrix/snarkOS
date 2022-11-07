@@ -15,7 +15,7 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{Message, MessageCodec, Router, RouterRequest};
-use snarkos_node_executor::{spawn_task, Executor, NodeType, Status};
+use snarkos_node_executor::{spawn_task_loop, Executor, NodeType, Status};
 use snarkvm::prelude::*;
 
 use anyhow::Result;
@@ -41,7 +41,7 @@ pub(crate) type PeerHandler<N> = mpsc::Receiver<Message<N>>;
 #[derive(Clone, Debug)]
 pub struct Peer<N: Network> {
     /// The IP address of the peer, with the port set to the listener port.
-    ip: Arc<SocketAddr>,
+    ip: SocketAddr,
     /// The message version of the peer.
     pub version: Arc<RwLock<u32>>,
     /// The node type of the peer.
@@ -72,7 +72,7 @@ impl<N: Network> Peer<N> {
 
         // Construct the peer.
         let peer = Peer {
-            ip: Arc::new(ip),
+            ip,
             version: Arc::new(RwLock::new(0)),
             node_type: Arc::new(RwLock::new(node_type)),
             status: Arc::new(RwLock::new(status)),
@@ -131,7 +131,7 @@ impl<N: Network> Peer<N> {
     /// Initialize a new instance of the garbage collector.
     async fn initialize_gc<E: Executor>(&self) {
         let peer = self.clone();
-        spawn_task!({
+        spawn_task_loop!(E, {
             const SLEEP: u64 = 60 * 10; // 10 minutes
             loop {
                 // Sleep for the heartbeat interval.

@@ -19,7 +19,6 @@ use snarkos_node_messages::{Data, Message, MessageCodec};
 use snarkvm::prelude::Network;
 
 use futures::SinkExt;
-use snarkos_node_executor::NodeType;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;

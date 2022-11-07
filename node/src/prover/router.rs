@@ -15,9 +15,8 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use snarkos_node_messages::{ChallengeRequest, NewEpochChallenge};
+use snarkos_node_messages::NewEpochChallenge;
 use snarkvm::prelude::{ProverSolution, PuzzleCommitment};
-use tokio::task;
 
 #[async_trait]
 impl<N: Network> Handshake for Prover<N> {}
@@ -42,7 +41,7 @@ impl<N: Network> Inbound<N> for Prover<N> {
                 trace!("Received 'PuzzleResponse' from '{peer_ip}' (Epoch {epoch_number}, Block {block_height})");
 
                 let router = self.router.clone();
-                let address = self.account.address().clone();
+                let address = self.account.address();
 
                 if let Err(e) = router
                     .process(RouterRequest::SendNewEpochChallenge(Message::NewEpochChallenge(NewEpochChallenge {
@@ -85,20 +84,17 @@ impl<N: Network> Inbound<N> for Prover<N> {
             if let Err(error) = self.router.process(request).await {
                 warn!("[UnconfirmedSolution] {error}");
             }
-        } else {
-            if !seen_before {
-                trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
-            } else if let Some(block) = self.latest_block.read().await.as_ref() {
-                // Compute the elapsed time since the last coinbase block.
-                let elapsed =
-                    OffsetDateTime::now_utc().unix_timestamp().saturating_sub(block.last_coinbase_timestamp());
-                // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
-                if elapsed > N::ANCHOR_TIME as i64 * 6 {
-                    // Propagate the `UnconfirmedSolution`.
-                    let request = RouterRequest::MessagePropagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
-                    if let Err(error) = router.process(request).await {
-                        warn!("[UnconfirmedSolution] {error}");
-                    }
+        } else if !seen_before {
+            trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
+        } else if let Some(block) = self.latest_block.read().await.as_ref() {
+            // Compute the elapsed time since the last coinbase block.
+            let elapsed = OffsetDateTime::now_utc().unix_timestamp().saturating_sub(block.last_coinbase_timestamp());
+            // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
+            if elapsed > N::ANCHOR_TIME as i64 * 6 {
+                // Propagate the `UnconfirmedSolution`.
+                let request = RouterRequest::MessagePropagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
+                if let Err(error) = router.process(request).await {
+                    warn!("[UnconfirmedSolution] {error}");
                 }
             }
         }
