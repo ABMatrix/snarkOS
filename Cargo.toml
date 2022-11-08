@@ -31,9 +31,6 @@ members = [
     "node/store"
 ]
 
-#[lib]
-#path = "snarkos/lib.rs"
-
 [[bin]]
 name = "snarkos"
 path = "snarkos/main.rs"
