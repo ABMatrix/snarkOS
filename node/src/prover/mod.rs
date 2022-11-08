@@ -73,11 +73,7 @@ impl<N: Network> Prover<N> {
         // Initialize the heartbeat.
         node.initialize_heartbeat().await;
         // Initialize the coinbase puzzle.
-        node.initialize_coinbase_puzzle().await;
-        // Initialize the coinbase puzzle.
-        node.initialize_coinbase_puzzle().await;
-        // Initialize the coinbase puzzle.
-        node.initialize_coinbase_puzzle().await;
+        // node.initialize_coinbase_puzzle().await;
         // Initialize the signal handler.
         node.handle_signals();
         // Return the node.
@@ -150,6 +146,7 @@ impl<N: Network> Prover<N> {
     }
 
     /// Initialize a new instance of the coinbase puzzle.
+    #[allow(dead_code)]
     async fn initialize_coinbase_puzzle(&self) {
         let prover = self.clone();
         spawn_task_loop!(Self, {

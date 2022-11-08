@@ -15,25 +15,31 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
+use snarkvm::prelude::Address;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnconfirmedSolution<N: Network> {
-    pub puzzle_commitment: PuzzleCommitment<N>,
-    pub solution: Data<ProverSolution<N>>,
+pub struct NewEpochChallenge<N: Network> {
+    pub block_height: u32,
+    pub proof_target: u64,
+    pub address: Address<N>,
+    pub epoch_challenge: EpochChallenge<N>,
 }
 
-impl<N: Network> MessageTrait for UnconfirmedSolution<N> {
+impl<N: Network> MessageTrait for NewEpochChallenge<N> {
     /// Returns the message name.
     #[inline]
     fn name(&self) -> &str {
-        "UnconfirmedSolution"
+        "NewEpochChallenge"
     }
 
     /// Serializes the message into the buffer.
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
-        writer.write_all(&self.puzzle_commitment.to_bytes_le()?)?;
-        self.solution.serialize_blocking_into(writer)
+        writer.write_all(&self.block_height.to_le_bytes())?;
+        writer.write_all(&self.proof_target.to_le_bytes())?;
+        writer.write_all(&self.address.to_bytes_le()?)?;
+        writer.write_all(&self.epoch_challenge.to_bytes_le()?)?;
+        Ok(())
     }
 
     /// Deserializes the given buffer into a message.
@@ -41,8 +47,10 @@ impl<N: Network> MessageTrait for UnconfirmedSolution<N> {
     fn deserialize(bytes: BytesMut) -> Result<Self> {
         let mut reader = bytes.reader();
         Ok(Self {
-            puzzle_commitment: PuzzleCommitment::<N>::read_le(&mut reader)?,
-            solution: Data::Buffer(reader.into_inner().freeze()),
+            block_height: bincode::deserialize_from(&mut reader)?,
+            proof_target: bincode::deserialize_from(&mut reader)?,
+            address: bincode::deserialize_from(&mut reader)?,
+            epoch_challenge: EpochChallenge::read_le(&mut reader)?,
         })
     }
 }

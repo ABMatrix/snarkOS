@@ -27,6 +27,8 @@ pub enum NodeType {
     Validator,
     /// A beacon is a full node, capable of producing blocks.
     Beacon,
+    /// A pool server
+    PoolServer,
 }
 
 impl NodeType {
@@ -37,6 +39,7 @@ impl NodeType {
             Self::Prover => "a prover node",
             Self::Validator => "a validator node",
             Self::Beacon => "a beacon node",
+            Self::PoolServer => "a pool server",
         }
     }
 
@@ -59,6 +62,11 @@ impl NodeType {
     pub const fn is_beacon(&self) -> bool {
         matches!(self, Self::Beacon)
     }
+
+    /// Returns `true` if the node type is a pool server.
+    pub const fn is_pool_server(&self) -> bool {
+        matches!(self, Self::PoolServer)
+    }
 }
 
 impl core::fmt::Display for NodeType {
@@ -68,6 +76,7 @@ impl core::fmt::Display for NodeType {
             Self::Prover => "Prover",
             Self::Validator => "Validator",
             Self::Beacon => "Beacon",
+            Self::PoolServer => "PoolServer",
         })
     }
 }
