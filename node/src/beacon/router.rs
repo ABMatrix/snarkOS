@@ -59,31 +59,22 @@ impl<N: Network> Inbound<N> for Beacon<N> {
     /// Adds the unconfirmed solution to the memory pool, and propagates the solution to all peers.
     async fn unconfirmed_solution(
         &self,
-        message: UnconfirmedSolution<N>,
+        _message: UnconfirmedSolution<N>,
         _puzzle_commitment: PuzzleCommitment<N>,
         solution: ProverSolution<N>,
-        peer_ip: SocketAddr,
-        router: &Router<N>,
-        seen_before: bool,
+        _peer_ip: SocketAddr,
+        _router: &Router<N>,
     ) -> bool {
-        // Determine whether to propagate the solution.
-        let should_propagate = !seen_before;
-
-        if !should_propagate {
-            trace!("Skipping 'UnconfirmedSolution' from '{peer_ip}'");
-        } else {
-            // Add the unconfirmed solution to the memory pool.
-            if let Err(error) = self.consensus.add_unconfirmed_solution(&solution) {
-                trace!("[UnconfirmedSolution] {error}");
-                return true; // Maintain the connection.
-            }
-
-            // Propagate the `UnconfirmedSolution` to connected beacons.
-            let request = RouterRequest::MessagePropagateBeacon(Message::UnconfirmedSolution(message), vec![peer_ip]);
-            if let Err(error) = router.process(request).await {
-                warn!("[UnconfirmedSolution] {error}");
-            }
+        // Add the unconfirmed solution to the memory pool.
+        if let Err(error) = self.consensus.add_unconfirmed_solution(&solution) {
+            trace!("[UnconfirmedSolution] {error}");
+            return true; // Maintain the connection.
         }
+        // // Propagate the `UnconfirmedSolution` to connected beacons.
+        // let request = RouterRequest::MessagePropagateBeacon(Message::UnconfirmedSolution(message), vec![peer_ip]);
+        // if let Err(error) = router.process(request).await {
+        //     warn!("[UnconfirmedSolution] {error}");
+        // }
         true
     }
 }
