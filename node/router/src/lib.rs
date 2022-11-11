@@ -510,17 +510,17 @@ impl<N: Network> Router<N> {
         debug!("Peers: {:?}", self.connected_peers().await);
 
         // TODO (howardwu): Remove this in Phase 3.
-        if E::node_type().is_beacon() {
-            // Proceed to send disconnect requests to these peers.
-            for peer_ip in self.connected_peers().await {
-                if !self.trusted_peers().contains(&peer_ip) {
-                    info!("Disconnecting from '{peer_ip}' (exceeded maximum connections)");
-                    self.handle_send(peer_ip, Message::Disconnect(DisconnectReason::TooManyPeers.into())).await;
-                    // Add an entry for this `Peer` in the restricted peers.
-                    self.restricted_peers.write().await.insert(peer_ip, Instant::now());
-                }
-            }
-        }
+        // if E::node_type().is_beacon() {
+        //     // Proceed to send disconnect requests to these peers.
+        //     for peer_ip in self.connected_peers().await {
+        //         if !self.trusted_peers().contains(&peer_ip) {
+        //             info!("Disconnecting from '{peer_ip}' (exceeded maximum connections)");
+        //             self.handle_send(peer_ip, Message::Disconnect(DisconnectReason::TooManyPeers.into())).await;
+        //             // Add an entry for this `Peer` in the restricted peers.
+        //             self.restricted_peers.write().await.insert(peer_ip, Instant::now());
+        //         }
+        //     }
+        // }
 
         // Obtain the number of connected peers.
         let number_of_connected_peers = self.number_of_connected_peers().await;
