@@ -16,7 +16,7 @@
 
 use super::*;
 use snarkos_node_messages::NewEpochChallenge;
-use snarkvm::prelude::{ProverSolution, PuzzleCommitment};
+use snarkvm::prelude::ProverSolution;
 
 #[async_trait]
 impl<N: Network> Handshake for Prover<N> {}
@@ -69,11 +69,10 @@ impl<N: Network> Inbound<N> for Prover<N> {
     /// Otherwise, the prover will ignore the message.
     async fn unconfirmed_solution(
         &self,
-        message: UnconfirmedSolution<N>,
-        _puzzle_commitment: PuzzleCommitment<N>,
-        _solution: ProverSolution<N>,
-        peer_ip: SocketAddr,
         router: &Router<N>,
+        peer_ip: SocketAddr,
+        message: UnconfirmedSolution<N>,
+        _solution: ProverSolution<N>,
     ) -> bool {
         // Determine whether to propagate the solution.
         if self.router.connected_pool_servers().await.contains(&peer_ip) {
