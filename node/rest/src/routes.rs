@@ -15,6 +15,9 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
+use anyhow::anyhow;
+use snarkos_node_consensus::coinbase_reward;
+use snarkvm::prelude::ProverSolution;
 
 /// The `get_blocks` query object.
 #[derive(Deserialize, Serialize)]
@@ -23,6 +26,15 @@ struct BlockRange {
     start: u32,
     /// The ending block height (exclusive).
     end: u32,
+}
+
+/// The `prover_reword_json` query object.
+#[derive(Deserialize, Serialize)]
+struct ProverRewardParams<N: Network> {
+    previous_timestamp: i64,
+    next_timestamp: i64,
+    height: u32,
+    prover_solutions: Vec<ProverSolution<N>>,
 }
 
 impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
@@ -216,6 +228,25 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .and(with(self.router.clone()))
             .and_then(Self::transaction_broadcast);
 
+        // POST /testnet3/prover_rewards/{}
+        let prover_rewards = warp::post()
+            .and(warp::path!("testnet3" / "prover_rewards"))
+            .and(warp::path::param::<i64>())
+            .and(warp::path::param::<i64>())
+            .and(warp::path::param::<u32>())
+            .and(warp::path::end())
+            .and(warp::body::content_length_limit(10 * 1024 * 1024))
+            .and(warp::body::json())
+            //.and(warp::body::json())
+            .and_then(Self::prover_rewards);
+
+        // POST /testnet3/prover_rewards/{}
+        let prover_rewards_json = warp::post()
+            .and(warp::path!("testnet3" / "prover_rewards_json"))
+            .and(warp::body::content_length_limit(10 * 1024 * 1024))
+            .and(warp::body::json())
+            .and_then(Self::prover_rewards_json);
+
         // Return the list of routes.
         latest_height
             .or(latest_hash)
@@ -243,6 +274,8 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .or(records_spent)
             .or(records_unspent)
             .or(transaction_broadcast)
+            .or(prover_rewards)
+            .or(prover_rewards_json)
     }
 }
 
@@ -436,5 +469,118 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             Ok(()) => Ok("OK"),
             Err(error) => Err(reject::custom(RestError::Request(format!("Failed to broadcast transaction: {error}")))),
         }
+    }
+
+    async fn prover_rewards(
+        previous_timestamp: i64,
+        next_timestamp: i64,
+        height: u32,
+        prover_solutions: Vec<ProverSolution<N>>,
+    ) -> Result<impl Reply, Rejection> {
+        info!("previous_timestamp: {}", previous_timestamp);
+        info!("next_timestamp: {}", next_timestamp);
+        info!("height: {}", height);
+        info!("prover_solutions: {:?}", prover_solutions);
+
+        // Calculate the coinbase reward.
+        let coinbase_reward =
+            coinbase_reward(previous_timestamp, next_timestamp, height, N::STARTING_SUPPLY, N::ANCHOR_TIME).unwrap();
+
+        // Compute the cumulative proof target of the prover solutions as a u128.
+        let cumulative_proof_target: u128 = prover_solutions
+            .iter()
+            .try_fold(0u128, |cumulative, solution| {
+                cumulative
+                    .checked_add(solution.to_target()? as u128)
+                    .ok_or_else(|| anyhow!("Cumulative proof target overflowed"))
+            })
+            .unwrap();
+
+        // Calculate the rewards for the individual provers.
+        let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+        for prover_solution in prover_solutions {
+            // Prover compensation is defined as:
+            //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
+            //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
+
+            // Compute the numerator.
+            let numerator = (coinbase_reward as u128)
+                .checked_mul(prover_solution.to_target().unwrap() as u128)
+                .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))
+                .unwrap();
+
+            // Compute the denominator.
+            let denominator = cumulative_proof_target
+                .checked_mul(2)
+                .ok_or_else(|| anyhow!("Prover reward denominator overflowed"))
+                .unwrap();
+
+            // Compute the prover reward.
+            let prover_reward = u64::try_from(
+                numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
+            )
+                .unwrap();
+
+            prover_rewards.push((prover_solution.address(), prover_reward));
+        }
+
+        Ok(reply::json(&prover_rewards))
+    }
+
+    async fn prover_rewards_json(params: ProverRewardParams<N>) -> Result<impl Reply, Rejection> {
+        info!("previous_timestamp: {}", params.previous_timestamp);
+        info!("next_timestamp: {}", params.next_timestamp);
+        info!("height: {}", params.height);
+        info!("prover_solutions: {:?}", params.prover_solutions);
+        // Calculate the coinbase reward.
+        let coinbase_reward = coinbase_reward(
+            params.previous_timestamp,
+            params.next_timestamp,
+            params.height,
+            N::STARTING_SUPPLY,
+            N::ANCHOR_TIME,
+        )
+            .unwrap();
+
+        // Compute the cumulative proof target of the prover solutions as a u128.
+        let cumulative_proof_target: u128 = params
+            .prover_solutions
+            .iter()
+            .try_fold(0u128, |cumulative, solution| {
+                cumulative
+                    .checked_add(solution.to_target()? as u128)
+                    .ok_or_else(|| anyhow!("Cumulative proof target overflowed"))
+            })
+            .unwrap();
+
+        // Calculate the rewards for the individual provers.
+        let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+        for prover_solution in params.prover_solutions {
+            // Prover compensation is defined as:
+            //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
+            //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
+
+            // Compute the numerator.
+            let numerator = (coinbase_reward as u128)
+                .checked_mul(prover_solution.to_target().unwrap() as u128)
+                .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))
+                .unwrap();
+
+            // Compute the denominator.
+            let denominator = cumulative_proof_target
+                .checked_mul(2)
+                .ok_or_else(|| anyhow!("Prover reward denominator overflowed"))
+                .unwrap();
+
+            // Compute the prover reward.
+            let prover_reward = u64::try_from(
+                numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
+            )
+                .unwrap();
+
+            prover_rewards.push((prover_solution.address(), prover_reward));
+        }
+
+        Ok(reply::json(&prover_rewards))
     }
 }
