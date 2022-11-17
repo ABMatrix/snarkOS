@@ -34,6 +34,7 @@ struct ProverRewardParams<N: Network> {
     previous_timestamp: i64,
     next_timestamp: i64,
     height: u32,
+    #[serde(bound(deserialize = "ProverSolution<N>: Deserialize<'de>"))]
     prover_solutions: Vec<ProverSolution<N>>,
 }
 
@@ -519,7 +520,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             let prover_reward = u64::try_from(
                 numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
             )
-                .unwrap();
+            .unwrap();
 
             prover_rewards.push((prover_solution.address(), prover_reward));
         }
@@ -540,7 +541,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             N::STARTING_SUPPLY,
             N::ANCHOR_TIME,
         )
-            .unwrap();
+        .unwrap();
 
         // Compute the cumulative proof target of the prover solutions as a u128.
         let cumulative_proof_target: u128 = params
@@ -576,7 +577,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             let prover_reward = u64::try_from(
                 numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
             )
-                .unwrap();
+            .unwrap();
 
             prover_rewards.push((prover_solution.address(), prover_reward));
         }
