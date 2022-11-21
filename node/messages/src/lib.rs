@@ -20,69 +20,53 @@
 extern crate tracing;
 
 mod helpers;
-
 pub use helpers::*;
 
 mod block_request;
-
 pub use block_request::BlockRequest;
 
 mod block_response;
-
 pub use block_response::BlockResponse;
 
 mod challenge_request;
-
 pub use challenge_request::ChallengeRequest;
 
 mod challenge_response;
-
 pub use challenge_response::ChallengeResponse;
 
 mod disconnect;
-
 pub use disconnect::Disconnect;
 
 mod peer_request;
-
 pub use peer_request::PeerRequest;
 
 mod peer_response;
-
 pub use peer_response::PeerResponse;
 
 mod ping;
-
 pub use ping::Ping;
 
 mod pong;
-
 pub use pong::Pong;
 
 mod puzzle_request;
-
 pub use puzzle_request::PuzzleRequest;
 
 mod puzzle_response;
-
 pub use puzzle_response::PuzzleResponse;
 
 mod unconfirmed_block;
-
 pub use unconfirmed_block::UnconfirmedBlock;
 
 mod unconfirmed_solution;
-
 pub use unconfirmed_solution::UnconfirmedSolution;
 
 mod unconfirmed_transaction;
-
 pub use unconfirmed_transaction::UnconfirmedTransaction;
 
 mod new_epoch_challenge;
 pub use new_epoch_challenge::NewEpochChallenge;
 
-use snarkos_node_executor::{NodeType, Status};
 use snarkvm::prelude::{
     Block,
     EpochChallenge,
