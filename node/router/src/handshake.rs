@@ -175,8 +175,10 @@ impl<N: Network> Router<N> {
             bail!("Dropping connection request from '{peer_ip}' (already connected)")
         }
         // Ensure the peer is not restricted.
-        if self.is_restricted(&peer_ip) {
-            bail!("Dropping connection request from '{peer_ip}' (restricted)")
+        if !self.connected_beacons().contains(&peer_ip) {
+            if self.is_restricted(&peer_ip) {
+                bail!("Dropping connection request from '{peer_ip}' (restricted)")
+            }
         }
         // Ensure the peer is not spamming connection attempts.
         if !peer_ip.ip().is_loopback() {
