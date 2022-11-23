@@ -240,6 +240,12 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .and(warp::body::json())
             .and_then(Self::prover_rewards);
 
+        // GET /testnet3/proverRewardsByHeight/{height}
+        let prover_rewards_by_height = warp::get()
+            .and(warp::path!("testnet3" / "proverRewards" / "height" / u32))
+            .and(with(self.ledger.clone()))
+            .and_then(Self::prover_rewards_by_height);
+
         // Return the list of routes.
         latest_height
             .or(latest_hash)
@@ -268,6 +274,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .or(records_unspent)
             .or(transaction_broadcast)
             .or(prover_rewards)
+            .or(prover_rewards_by_height)
     }
 }
 
@@ -464,10 +471,6 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
     }
 
     async fn prover_rewards(params: ProverRewardParams<N>) -> Result<impl Reply, Rejection> {
-        debug!("previous_timestamp: {}", params.previous_last_coinbase_timestamp);
-        debug!("next_timestamp: {}", params.current_timestamp);
-        debug!("height: {}", params.current_block_height);
-        debug!("prover_solutions: {:?}", params.current_partial_solutions);
         // Calculate the coinbase reward.
         let coinbase_reward = coinbase_reward(
             params.previous_last_coinbase_timestamp,
@@ -513,6 +516,70 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
                 numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
             )
             .unwrap();
+
+            prover_rewards.push((prover_solution.address(), prover_reward));
+        }
+
+        Ok(reply::json(&prover_rewards))
+    }
+
+    async fn prover_rewards_by_height(height: u32, ledger: Ledger<N, C>) -> Result<impl Reply, Rejection> {
+        let latest_height = ledger.latest_height();
+        if latest_height < height {
+            return Err(reject::custom(RestError::Request(format!(
+                "input block height {} is greater than latest height {}",
+                height, latest_height
+            ))));
+        }
+
+        let previous_block = ledger.get_block(height-1).unwrap();
+        let current_block = ledger.get_block(height).unwrap();
+        // Calculate the coinbase reward.
+        let coinbase_reward = coinbase_reward(
+            previous_block.header().last_coinbase_timestamp(),
+            current_block.header().timestamp(),
+            height,
+            N::STARTING_SUPPLY,
+            N::ANCHOR_TIME,
+        )
+            .unwrap();
+
+        // Compute the cumulative proof target of the prover solutions as a u128.
+        let cumulative_proof_target: u128 = current_block.coinbase()
+            .unwrap()
+            .partial_solutions()
+            .iter()
+            .try_fold(0u128, |cumulative, solution| {
+                cumulative
+                    .checked_add(solution.to_target()? as u128)
+                    .ok_or_else(|| anyhow!("Cumulative proof target overflowed"))
+            })
+            .unwrap();
+
+        // Calculate the rewards for the individual provers.
+        let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+        for prover_solution in current_block.coinbase().unwrap().partial_solutions() {
+            // Prover compensation is defined as:
+            //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
+            //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
+
+            // Compute the numerator.
+            let numerator = (coinbase_reward as u128)
+                .checked_mul(prover_solution.to_target().unwrap() as u128)
+                .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))
+                .unwrap();
+
+            // Compute the denominator.
+            let denominator = cumulative_proof_target
+                .checked_mul(2)
+                .ok_or_else(|| anyhow!("Prover reward denominator overflowed"))
+                .unwrap();
+
+            // Compute the prover reward.
+            let prover_reward = u64::try_from(
+                numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed")).unwrap(),
+            )
+                .unwrap();
 
             prover_rewards.push((prover_solution.address(), prover_reward));
         }
