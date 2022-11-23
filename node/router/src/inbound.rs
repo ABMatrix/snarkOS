@@ -416,8 +416,12 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
         message: UnconfirmedTransaction<N>,
         _transaction: Transaction<N>,
     ) -> bool {
+        let mut excluded_peers = self.router().connected_pool_servers();
+        if !excluded_peers.contains(&peer_ip) {
+            excluded_peers.push(peer_ip)
+        }
         // Propagate the `UnconfirmedTransaction`.
-        self.propagate(Message::UnconfirmedTransaction(message), vec![peer_ip]);
+        self.propagate(Message::UnconfirmedTransaction(message), excluded_peers);
         true
     }
 }
