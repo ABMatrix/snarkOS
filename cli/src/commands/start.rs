@@ -296,6 +296,7 @@ impl Start {
             NodeType::Validator => Node::new_validator(self.node, rest_ip, account, &trusted_peers, genesis, cdn, self.dev).await,
             NodeType::Prover => Node::new_prover(self.node, account, &trusted_peers, self.dev).await,
             NodeType::Client => Node::new_client(self.node, account, &trusted_peers, self.dev).await,
+            NodeType::PoolServer => panic!("Unexpect node type"),
         }
     }
 

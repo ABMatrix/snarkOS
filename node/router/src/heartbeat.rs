@@ -60,12 +60,15 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
     async fn remove_oldest_connected_peer(&self) {
         // Check if the router is above the minimum number of connected peers.
         if self.router().number_of_connected_peers() > Self::MINIMUM_NUMBER_OF_PEERS {
+            let pool_servers = self.router().connected_pool_servers();
             // Disconnect from the oldest connected peer, if one exists.
             if let Some(oldest) = self.router().oldest_connected_peer() {
-                info!("Disconnecting from '{oldest}' (periodic refresh of peers)");
-                self.send(oldest, Message::Disconnect(DisconnectReason::PeerRefresh.into()));
-                // Disconnect from this peer.
-                self.router().disconnect(oldest).await;
+                if !pool_servers.contains(&oldest) {
+                    info!("Disconnecting from '{oldest}' (periodic refresh of peers)");
+                    self.send(oldest, Message::Disconnect(DisconnectReason::PeerRefresh.into()));
+                    // Disconnect from this peer.
+                    self.router().disconnect(oldest).await;
+                }
             }
         }
     }

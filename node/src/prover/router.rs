@@ -134,8 +134,11 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
             .copied()
             .collect::<Vec<_>>();
 
-        peers.push(peer_ip);
+        if !peers.contains(&peer_ip) {
+            peers.push(peer_ip);
+        }
 
+        trace!("Sending 'NewEpochChallenge' to '{:?}', excluded_peers: '{:?}'", pool_servers, peers);
         self.propagate(
             Message::NewEpochChallenge(NewEpochChallenge {
                 block_height,
