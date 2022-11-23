@@ -364,9 +364,11 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
 
     fn unconfirmed_block(&self, peer_ip: SocketAddr, message: UnconfirmedBlock<N>, _block: Block<N>) -> bool {
         // Propagate the `UnconfirmedBlock`.
-        let mut peers = self.router().connected_pool_servers();
-        peers.push(peer_ip);
-        self.propagate(Message::UnconfirmedBlock(message), peers);
+        let mut excluded_peers = self.router().connected_pool_servers();
+        if !excluded_peers.contains(&peer_ip) {
+            excluded_peers.push(peer_ip)
+        }
+        self.propagate(Message::UnconfirmedBlock(message), excluded_peers);
         true
 
         // // Ensure the unconfirmed block is at least within 2 blocks of the latest block height,
