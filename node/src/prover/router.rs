@@ -161,8 +161,10 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
         message: UnconfirmedSolution<N>,
         _solution: ProverSolution<N>,
     ) -> bool {
+        let pool_servers = self.router.connected_pool_servers();
+        let mut excluded_peers = pool_servers;
         if self.router.connected_pool_servers().contains(&peer_ip) {
-            self.propagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
+            self.propagate(Message::UnconfirmedSolution(message), excluded_peers);
         } else {
             let last_coinbase_timestamp =
                 self.latest_block.read().as_ref().map(|block| block.last_coinbase_timestamp());
@@ -171,8 +173,11 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
                 let elapsed = OffsetDateTime::now_utc().unix_timestamp().saturating_sub(last_coinbase_timestamp);
                 // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
                 if elapsed > N::ANCHOR_TIME as i64 * 6 {
+                    if !excluded_peers.contains(&peer_ip) {
+                        excluded_peers.push(peer_ip)
+                    }
                     // Propagate the `UnconfirmedSolution`.
-                    self.propagate(Message::UnconfirmedSolution(message), vec![peer_ip]);
+                    self.propagate(Message::UnconfirmedSolution(message), excluded_peers);
                 }
             }
         }
