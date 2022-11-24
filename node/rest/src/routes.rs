@@ -42,6 +42,26 @@ struct ProverRewardParams<N: Network> {
     current_partial_solutions: Vec<PartialSolution<N>>,
 }
 
+/// The 'reward prover info'
+#[derive(Deserialize, Serialize)]
+struct ProverRewardInfo {
+    /// prover target from coinbase puzzle solution
+    target: u128,
+    /// prover reward from coinbase puzzle solution
+    reward: u64
+}
+
+/// The 'prover_reword' response object
+#[derive(Deserialize, Serialize)]
+struct ProverRewardResponse<N: Network> {
+    /// coinbase reward calculate from block
+    coinbase_reward: u64,
+    /// coinbase target calculate from block's partialSolution
+    total_target: u128,
+    #[serde(bound(deserialize = "PartialSolution<N>: Deserialize<'de>"))]
+    prover_reward_info: Vec<(Address<N>, ProverRewardInfo)>
+}
+
 impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
     /// Initializes the routes, given the ledger and ledger sender.
     pub fn routes(&self) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -493,15 +513,16 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .unwrap();
 
         // Calculate the rewards for the individual provers.
-        let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo)> = Vec::new();
         for prover_solution in params.current_partial_solutions {
             // Prover compensation is defined as:
             //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
             //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
 
             // Compute the numerator.
+            let prover_target = prover_solution.to_target().unwrap() as u128;
             let numerator = (coinbase_reward as u128)
-                .checked_mul(prover_solution.to_target().unwrap() as u128)
+                .checked_mul(prover_target)
                 .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))
                 .unwrap();
 
@@ -517,10 +538,21 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             )
             .unwrap();
 
-            prover_rewards.push((prover_solution.address(), prover_reward));
+            let prover_info = ProverRewardInfo{
+                target: prover_target,
+                reward: prover_reward
+            };
+
+            prover_rewards.push((prover_solution.address(), prover_info));
         }
 
-        Ok(reply::json(&prover_rewards))
+        let prover_response = ProverRewardResponse {
+            coinbase_reward,
+            total_target: cumulative_proof_target,
+            prover_reward_info: prover_rewards
+        };
+
+        Ok(reply::json(&prover_response))
     }
 
     async fn prover_rewards_by_height(height: u32, ledger: Ledger<N, C>) -> Result<impl Reply, Rejection> {
@@ -557,15 +589,16 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .unwrap();
 
         // Calculate the rewards for the individual provers.
-        let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo)> = Vec::new();
         for prover_solution in current_block.coinbase().unwrap().partial_solutions() {
             // Prover compensation is defined as:
             //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
             //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
 
             // Compute the numerator.
+            let prover_target = prover_solution.to_target().unwrap() as u128;
             let numerator = (coinbase_reward as u128)
-                .checked_mul(prover_solution.to_target().unwrap() as u128)
+                .checked_mul(prover_target)
                 .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))
                 .unwrap();
 
@@ -581,9 +614,20 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             )
                 .unwrap();
 
-            prover_rewards.push((prover_solution.address(), prover_reward));
+            let prover_info = ProverRewardInfo{
+                target: prover_target,
+                reward: prover_reward
+            };
+
+            prover_rewards.push((prover_solution.address(), prover_info));
         }
 
-        Ok(reply::json(&prover_rewards))
+        let prover_response = ProverRewardResponse {
+            coinbase_reward,
+            total_target: cumulative_proof_target,
+            prover_reward_info: prover_rewards
+        };
+
+        Ok(reply::json(&prover_response))
     }
 }
