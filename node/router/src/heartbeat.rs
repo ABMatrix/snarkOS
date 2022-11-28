@@ -90,12 +90,16 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
         // Retrieve the bootstrap peers.
         let bootstrap = self.router().bootstrap_peers();
 
+        let pool_servers = self.router().connected_pool_servers();
+
         // Find the oldest connected peer, that is neither trusted nor a bootstrap peer.
         let oldest_peer = self
             .router()
             .get_connected_peers()
             .iter()
-            .filter(|peer| !trusted.contains(&peer.ip()) && !bootstrap.contains(&peer.ip()))
+            .filter(|peer| {
+                !trusted.contains(&peer.ip()) && !bootstrap.contains(&peer.ip()) && !pool_servers.contains(&peer.ip())
+            })
             .min_by_key(|peer| peer.last_seen())
             .map(|peer| peer.ip());
 
