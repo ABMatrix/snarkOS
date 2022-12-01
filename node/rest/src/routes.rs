@@ -17,7 +17,7 @@
 use super::*;
 use anyhow::anyhow;
 use snarkos_node_consensus::coinbase_reward;
-use snarkvm::prelude::PartialSolution;
+use snarkvm::prelude::{PartialSolution, PuzzleCommitment};
 
 /// The `get_blocks` query object.
 #[derive(Deserialize, Serialize)]
@@ -44,11 +44,14 @@ struct ProverRewardParams<N: Network> {
 
 /// The 'reward prover info'
 #[derive(Deserialize, Serialize)]
-struct ProverRewardInfo {
+struct ProverRewardInfo<N: Network> {
     /// prover target from coinbase puzzle solution
     target: u128,
     /// prover reward from coinbase puzzle solution
-    reward: u64
+    reward: u64,
+    /// prove commitment from puzzle solution
+    #[serde(bound(deserialize = "PartialSolution<N>: Deserialize<'de>"))]
+    commitment: PuzzleCommitment<N>,
 }
 
 /// The 'prover_reword' response object
@@ -59,7 +62,7 @@ struct ProverRewardResponse<N: Network> {
     /// coinbase target calculate from block's partialSolution
     total_target: u128,
     #[serde(bound(deserialize = "PartialSolution<N>: Deserialize<'de>"))]
-    prover_reward_info: Vec<(Address<N>, ProverRewardInfo)>
+    prover_reward_info: Vec<(Address<N>, ProverRewardInfo<N>)>,
 }
 
 impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
@@ -513,7 +516,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .unwrap();
 
         // Calculate the rewards for the individual provers.
-        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo)> = Vec::new();
+        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo<N>)> = Vec::new();
         for prover_solution in params.current_partial_solutions {
             // Prover compensation is defined as:
             //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
@@ -540,7 +543,8 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
 
             let prover_info = ProverRewardInfo{
                 target: prover_target,
-                reward: prover_reward
+                reward: prover_reward,
+                commitment: prover_solution.commitment(),
             };
 
             prover_rewards.push((prover_solution.address(), prover_info));
@@ -589,7 +593,7 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
             .unwrap();
 
         // Calculate the rewards for the individual provers.
-        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo)> = Vec::new();
+        let mut prover_rewards: Vec<(Address<N>, ProverRewardInfo<N>)> = Vec::new();
         for prover_solution in current_block.coinbase().unwrap().partial_solutions() {
             // Prover compensation is defined as:
             //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
@@ -616,7 +620,8 @@ impl<N: Network, C: ConsensusStorage<N>> Rest<N, C> {
 
             let prover_info = ProverRewardInfo{
                 target: prover_target,
-                reward: prover_reward
+                reward: prover_reward,
+                commitment: prover_solution.commitment(),
             };
 
             prover_rewards.push((prover_solution.address(), prover_info));
