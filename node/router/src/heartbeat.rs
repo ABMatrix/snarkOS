@@ -191,7 +191,9 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             }
             // Request more peers from the connected peers.
             for peer_ip in self.router().connected_peers().into_iter().choose_multiple(rng, 3) {
-                self.send(peer_ip, Message::PeerRequest(PeerRequest));
+                if !self.router().connected_pool_servers().contains(&peer_ip) {
+                    self.send(peer_ip, Message::PeerRequest(PeerRequest));
+                }
             }
         }
     }
