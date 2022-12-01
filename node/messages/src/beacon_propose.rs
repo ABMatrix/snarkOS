@@ -15,31 +15,41 @@
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use snarkvm::prelude::Address;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NewEpochChallenge<N: Network> {
+pub struct BeaconPropose<N: Network> {
+    pub version: u8,
+    pub round: u64,
     pub block_height: u32,
-    pub proof_target: u64,
-    pub address: Address<N>,
-    pub epoch_challenge: EpochChallenge<N>,
+    pub block_hash: N::BlockHash,
+    pub block: Data<Block<N>>,
 }
 
-impl<N: Network> MessageTrait for NewEpochChallenge<N> {
+impl<N: Network> BeaconPropose<N> {
+    /// The current version of this message.
+    pub const INTERNAL_VERSION: u8 = 0;
+
+    /// Initializes a new message.
+    pub const fn new(round: u64, block_height: u32, block_hash: N::BlockHash, block: Data<Block<N>>) -> Self {
+        Self { version: Self::INTERNAL_VERSION, round, block_height, block_hash, block }
+    }
+}
+
+impl<N: Network> MessageTrait for BeaconPropose<N> {
     /// Returns the message name.
     #[inline]
     fn name(&self) -> String {
-        "NewEpochChallenge".to_string()
+        format!("BeaconPropose {}", self.block_height)
     }
 
     /// Serializes the message into the buffer.
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+        writer.write_all(&self.version.to_le_bytes())?;
+        writer.write_all(&self.round.to_le_bytes())?;
         writer.write_all(&self.block_height.to_le_bytes())?;
-        writer.write_all(&self.proof_target.to_le_bytes())?;
-        writer.write_all(&self.address.to_bytes_le()?)?;
-        writer.write_all(&self.epoch_challenge.to_bytes_le()?)?;
-        Ok(())
+        writer.write_all(&self.block_hash.to_bytes_le()?)?;
+        self.block.serialize_blocking_into(writer)
     }
 
     /// Deserializes the given buffer into a message.
@@ -47,10 +57,11 @@ impl<N: Network> MessageTrait for NewEpochChallenge<N> {
     fn deserialize(bytes: BytesMut) -> Result<Self> {
         let mut reader = bytes.reader();
         Ok(Self {
+            version: bincode::deserialize_from(&mut reader)?,
+            round: bincode::deserialize_from(&mut reader)?,
             block_height: bincode::deserialize_from(&mut reader)?,
-            proof_target: bincode::deserialize_from(&mut reader)?,
-            address: bincode::deserialize_from(&mut reader)?,
-            epoch_challenge: EpochChallenge::read_le(&mut reader)?,
+            block_hash: N::BlockHash::read_le(&mut reader)?,
+            block: Data::Buffer(reader.into_inner().freeze()),
         })
     }
 }
