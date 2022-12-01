@@ -76,6 +76,11 @@ impl<N: Network> Peer<N> {
         self.node_type.is_client()
     }
 
+    /// Returns `true` if the peer is a pool_server.
+    pub const fn is_pool_server(&self) -> bool {
+        self.node_type.is_pool_server()
+    }
+
     /// Returns the last seen timestamp of the peer.
     pub fn last_seen(&self) -> Instant {
         *self.last_seen.read()

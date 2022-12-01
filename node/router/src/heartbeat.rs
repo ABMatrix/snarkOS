@@ -32,7 +32,8 @@ pub const fn max(a: usize, b: usize) -> usize {
 
 pub trait Heartbeat<N: Network>: Outbound<N> {
     /// The duration in seconds to sleep in between heartbeat executions.
-    const HEARTBEAT_IN_SECS: u64 = 15; // 15 seconds
+    const HEARTBEAT_IN_SECS: u64 = 15;
+    // 15 seconds
     /// The minimum number of peers required to maintain connections with.
     const MINIMUM_NUMBER_OF_PEERS: usize = 3;
     /// The median number of peers to maintain connections with.
@@ -91,12 +92,14 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
     fn remove_stale_connected_peers(&self) {
         // Check if any connected peer is stale.
         for peer in self.router().get_connected_peers() {
-            // Disconnect if the peer has not communicated back within the predefined time.
-            let elapsed = peer.last_seen().elapsed().as_secs();
-            if elapsed > Router::<N>::RADIO_SILENCE_IN_SECS {
-                warn!("Peer {} has not communicated in {elapsed} seconds", peer.ip());
-                // Disconnect from this peer.
-                self.router().disconnect(peer.ip());
+            if !peer.is_pool_server() {
+                // Disconnect if the peer has not communicated back within the predefined time.
+                let elapsed = peer.last_seen().elapsed().as_secs();
+                if elapsed > Router::<N>::RADIO_SILENCE_IN_SECS {
+                    warn!("Peer {} has not communicated in {elapsed} seconds", peer.ip());
+                    // Disconnect from this peer.
+                    self.router().disconnect(peer.ip());
+                }
             }
         }
     }
