@@ -31,6 +31,7 @@ use snarkvm::prelude::{error, Address, Header, Network};
 use anyhow::{bail, Result};
 use futures::SinkExt;
 use rand::{rngs::OsRng, Rng};
+use snarkos_node_messages::NodeType::PoolServer;
 use std::{io, net::SocketAddr};
 use tokio::net::TcpStream;
 use tokio_stream::StreamExt;
@@ -127,12 +128,14 @@ impl<N: Network> Router<N> {
         trace!("Received '{}-A' from '{peer_addr}'", response_a.name());
 
         // Verify the challenge response. If a disconnect reason was returned, send the disconnect message and abort.
-        if let Some(reason) =
-            self.verify_challenge_response(peer_addr, request_b.address, response_a, genesis_header, nonce_a).await
-        {
-            trace!("Sending 'Disconnect' to '{peer_addr}'");
-            framed.send(Message::Disconnect(Disconnect { reason: reason.clone() })).await?;
-            return Err(error(format!("Dropped '{peer_addr}' for reason: {reason:?}")));
+        if request_b.node_type != PoolServer {
+            if let Some(reason) =
+                self.verify_challenge_response(peer_addr, request_b.address, response_a, genesis_header, nonce_a).await
+            {
+                trace!("Sending 'Disconnect' to '{peer_addr}'");
+                framed.send(Message::Disconnect(Disconnect { reason: reason.clone() })).await?;
+                return Err(error(format!("Dropped '{peer_addr}' for reason: {reason:?}")));
+            }
         }
 
         /* Step 5: Add the peer to the router. */
