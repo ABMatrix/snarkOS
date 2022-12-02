@@ -332,7 +332,6 @@ impl<N: Network> Router<N> {
             // TODO (howardwu): Change this for Phase 3.
             vec![
                 SocketAddr::from_str("164.92.111.59:4133").unwrap(),
-                SocketAddr::from_str("207.154.215.49:4133").unwrap(),
             ]
         }
     }

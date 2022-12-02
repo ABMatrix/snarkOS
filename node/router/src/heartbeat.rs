@@ -35,7 +35,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
     const HEARTBEAT_IN_SECS: u64 = 15;
     // 15 seconds
     /// The minimum number of peers required to maintain connections with.
-    const MINIMUM_NUMBER_OF_PEERS: usize = 10;
+    const MINIMUM_NUMBER_OF_PEERS: usize = 3;
     /// The median number of peers to maintain connections with.
     const MEDIAN_NUMBER_OF_PEERS: usize = max(Self::MAXIMUM_NUMBER_OF_PEERS / 2, Self::MINIMUM_NUMBER_OF_PEERS);
     /// The maximum number of peers permitted to maintain connections with.
@@ -144,25 +144,12 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
     ///  If the node is a client or prover, prioritize validators, and keep 0 beacons.
     /// This function keeps the number of connected peers within the allowed range.
     fn handle_connected_peers(&self) {
-        // Obtain the number of connected peers.
-        let num_connected = self.router().number_of_connected_peers();
-        // Compute the number of surplus peers.
-        let num_surplus = num_connected.saturating_sub(Self::MAXIMUM_NUMBER_OF_PEERS);
-        // Compute the number of deficit peers.
-        let num_deficient = Self::MEDIAN_NUMBER_OF_PEERS.saturating_sub(num_connected);
-
-        if num_surplus > 0 {
-            debug!("Exceeded maximum number of connected peers, disconnecting from {num_surplus} peers");
-
             // Retrieve the trusted peers.
             let trusted = self.router().trusted_peers();
             // Retrieve the bootstrap peers.
             let bootstrap = self.router().bootstrap_peers();
 
             let pool_servers = self.router().connected_pool_servers();
-
-            // Initialize an RNG.
-            let rng = &mut OsRng::default();
 
             // TODO (howardwu): As a validator, prioritize disconnecting from clients and provers.
             //  Remove RNG, pick the `n` oldest nodes.
@@ -172,8 +159,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
                 .connected_peers()
                 .into_iter()
                 .filter(|peer_ip| !trusted.contains(peer_ip) && !bootstrap.contains(peer_ip)
-                    && !pool_servers.contains(peer_ip))
-                .choose_multiple(rng, num_surplus);
+                    && !pool_servers.contains(peer_ip));
 
             // Proceed to send disconnect requests to these peers.
             for peer_ip in peer_ips_to_disconnect {
@@ -182,23 +168,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
                 // Disconnect from this peer.
                 self.router().disconnect(peer_ip);
             }
-        }
 
-        if num_deficient > 0 {
-            // Initialize an RNG.
-            let rng = &mut OsRng::default();
-
-            // Attempt to connect to more peers.
-            for peer_ip in self.router().candidate_peers().into_iter().choose_multiple(rng, num_deficient) {
-                self.router().connect(peer_ip);
-            }
-            // Request more peers from the connected peers.
-            for peer_ip in self.router().connected_peers().into_iter().choose_multiple(rng, 3) {
-                if !self.router().connected_pool_servers().contains(&peer_ip) {
-                    self.send(peer_ip, Message::PeerRequest(PeerRequest));
-                }
-            }
-        }
     }
 
     // TODO (howardwu): Remove this for Phase 3.
@@ -221,14 +191,11 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             // }
             return;
         }
-        // If there are not enough connected bootstrap peers, connect to more.
 
-        // Initialize an RNG.
-        let rng = &mut OsRng::default();
-        // Attempt to connect to a bootstrap peer.
-        if let Some(peer_ip) = candidate_bootstrap.into_iter().choose(rng) {
+        for peer_ip in candidate_bootstrap {
             self.router().connect(peer_ip);
         }
+
     }
 
     /// This function attempts to connect to any disconnected trusted peers.
