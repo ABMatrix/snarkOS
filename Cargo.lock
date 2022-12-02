@@ -2714,8 +2714,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "anyhow",
  "clap",
@@ -2741,8 +2741,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-algorithms"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "anyhow",
@@ -2767,8 +2767,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-account",
  "snarkvm-circuit-algorithms",
@@ -2781,8 +2781,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-account"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-algorithms",
  "snarkvm-circuit-network",
@@ -2792,8 +2792,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-algorithms"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-types",
  "snarkvm-console-algorithms",
@@ -2802,8 +2802,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-collections"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-algorithms",
  "snarkvm-circuit-types",
@@ -2812,8 +2812,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-environment"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "indexmap",
  "itertools",
@@ -2830,13 +2830,13 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-environment-witness"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 
 [[package]]
 name = "snarkvm-circuit-network"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-algorithms",
  "snarkvm-circuit-collections",
@@ -2846,8 +2846,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-program"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-account",
  "snarkvm-circuit-collections",
@@ -2859,8 +2859,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-address",
@@ -2874,8 +2874,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-address"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2887,8 +2887,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-boolean"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-console-types-boolean",
@@ -2896,8 +2896,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-field"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2906,8 +2906,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-group"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2918,8 +2918,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-integers"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2929,8 +2929,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-scalar"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2940,8 +2940,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-circuit-types-string"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-circuit-environment",
  "snarkvm-circuit-types-boolean",
@@ -2952,8 +2952,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-account",
  "snarkvm-console-algorithms",
@@ -2965,8 +2965,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-account"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "bs58",
  "snarkvm-console-network",
@@ -2975,8 +2975,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-algorithms"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "blake2s_simd",
  "smallvec",
@@ -2987,8 +2987,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-collections"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "rayon",
@@ -2998,8 +2998,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-network"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -3021,8 +3021,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-network-environment"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "anyhow",
  "bech32",
@@ -3038,8 +3038,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-program"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "enum_index",
  "enum_index_derive",
@@ -3056,8 +3056,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-address",
@@ -3071,8 +3071,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-address"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3082,16 +3082,16 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-boolean"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
 ]
 
 [[package]]
 name = "snarkvm-console-types-field"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3099,8 +3099,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-group"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3110,8 +3110,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-integers"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3120,8 +3120,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-scalar"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3130,8 +3130,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-console-types-string"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "snarkvm-console-network-environment",
  "snarkvm-console-types-boolean",
@@ -3141,8 +3141,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-curves"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "rand",
  "rustc_version",
@@ -3154,8 +3154,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-fields"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "anyhow",
@@ -3171,8 +3171,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-parameters"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "anyhow",
@@ -3196,8 +3196,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-r1cs"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -3212,8 +3212,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-synthesizer"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "anyhow",
@@ -3239,8 +3239,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-utilities"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "aleo-std",
  "anyhow",
@@ -3257,8 +3257,8 @@ dependencies = [
 
 [[package]]
 name = "snarkvm-utilities-derives"
-version = "0.9.8"
-source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#0795a84b5c85b8235cb73d809d3eff783f5e859d"
+version = "0.9.9"
+source = "git+https://github.com/ABMatrix/snarkVM.git?branch=ABMatrix/testnet3#e13f74d6d3903b2aabc1b45171d062db01aaa3de"
 dependencies = [
  "proc-macro2 1.0.47",
  "quote 1.0.21",
