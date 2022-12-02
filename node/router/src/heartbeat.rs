@@ -228,7 +228,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             }
         }
         // Determine if the node is connected to more bootstrap peers than allowed.
-        let num_surplus = connected_bootstrap.len().saturating_sub(10);
+        let num_surplus = connected_bootstrap.len().saturating_sub(3);
         if num_surplus > 0 {
             // Initialize an RNG.
             let rng = &mut OsRng::default();
