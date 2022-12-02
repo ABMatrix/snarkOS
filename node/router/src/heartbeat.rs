@@ -219,26 +219,12 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             return;
         }
         // If there are not enough connected bootstrap peers, connect to more.
-        if connected_bootstrap.len() < 3 {
-            // Initialize an RNG.
-            let rng = &mut OsRng::default();
-            // Attempt to connect to a bootstrap peer.
-            if let Some(peer_ip) = candidate_bootstrap.into_iter().choose(rng) {
-                self.router().connect(peer_ip);
-            }
-        }
-        // Determine if the node is connected to more bootstrap peers than allowed.
-        let num_surplus = connected_bootstrap.len().saturating_sub(3);
-        if num_surplus > 0 {
-            // Initialize an RNG.
-            let rng = &mut OsRng::default();
-            // Proceed to send disconnect requests to these bootstrap peers.
-            for peer_ip in connected_bootstrap.into_iter().choose_multiple(rng, num_surplus) {
-                info!("Disconnecting from '{peer_ip}' (exceeded maximum bootstrap)");
-                self.send(peer_ip, Message::Disconnect(DisconnectReason::TooManyPeers.into()));
-                // Disconnect from this peer.
-                self.router().disconnect(peer_ip);
-            }
+
+        // Initialize an RNG.
+        let rng = &mut OsRng::default();
+        // Attempt to connect to a bootstrap peer.
+        if let Some(peer_ip) = candidate_bootstrap.into_iter().choose(rng) {
+            self.router().connect(peer_ip);
         }
     }
 
