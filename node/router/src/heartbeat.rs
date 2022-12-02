@@ -35,7 +35,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
     const HEARTBEAT_IN_SECS: u64 = 15;
     // 15 seconds
     /// The minimum number of peers required to maintain connections with.
-    const MINIMUM_NUMBER_OF_PEERS: usize = 3;
+    const MINIMUM_NUMBER_OF_PEERS: usize = 10;
     /// The median number of peers to maintain connections with.
     const MEDIAN_NUMBER_OF_PEERS: usize = max(Self::MAXIMUM_NUMBER_OF_PEERS / 2, Self::MINIMUM_NUMBER_OF_PEERS);
     /// The maximum number of peers permitted to maintain connections with.
@@ -219,7 +219,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             return;
         }
         // If there are not enough connected bootstrap peers, connect to more.
-        if connected_bootstrap.is_empty() {
+        if connected_bootstrap.len() < 3 {
             // Initialize an RNG.
             let rng = &mut OsRng::default();
             // Attempt to connect to a bootstrap peer.
@@ -228,7 +228,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             }
         }
         // Determine if the node is connected to more bootstrap peers than allowed.
-        let num_surplus = connected_bootstrap.len().saturating_sub(1);
+        let num_surplus = connected_bootstrap.len().saturating_sub(10);
         if num_surplus > 0 {
             // Initialize an RNG.
             let rng = &mut OsRng::default();
