@@ -332,15 +332,15 @@ impl<N: Network> Router<N> {
             // TODO (howardwu): Change this for Phase 3.
             vec![
                 SocketAddr::from_str("164.92.111.59:4133").unwrap(),
-                // SocketAddr::from_str("159.223.204.96:4133").unwrap(),
-                // SocketAddr::from_str("167.71.219.176:4133").unwrap(),
-                // SocketAddr::from_str("157.245.205.209:4133").unwrap(),
-                // SocketAddr::from_str("134.122.95.106:4133").unwrap(),
-                // SocketAddr::from_str("161.35.24.55:4133").unwrap(),
-                // SocketAddr::from_str("138.68.103.139:4133").unwrap(),
-                // SocketAddr::from_str("207.154.215.49:4133").unwrap(),
-                // SocketAddr::from_str("46.101.114.158:4133").unwrap(),
-                // SocketAddr::from_str("138.197.190.94:4133").unwrap(),
+                SocketAddr::from_str("159.223.204.96:4133").unwrap(),
+                SocketAddr::from_str("167.71.219.176:4133").unwrap(),
+                SocketAddr::from_str("157.245.205.209:4133").unwrap(),
+                SocketAddr::from_str("134.122.95.106:4133").unwrap(),
+                SocketAddr::from_str("161.35.24.55:4133").unwrap(),
+                SocketAddr::from_str("138.68.103.139:4133").unwrap(),
+                SocketAddr::from_str("207.154.215.49:4133").unwrap(),
+                SocketAddr::from_str("46.101.114.158:4133").unwrap(),
+                SocketAddr::from_str("138.197.190.94:4133").unwrap(),
             ]
         }
     }
