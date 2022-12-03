@@ -159,6 +159,8 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
             // Retrieve the bootstrap peers.
             let bootstrap = self.router().bootstrap_peers();
 
+            let pool_servers = self.router().connected_pool_servers();
+
             // Initialize an RNG.
             let rng = &mut OsRng::default();
 
@@ -169,7 +171,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
                 .router()
                 .connected_peers()
                 .into_iter()
-                .filter(|peer_ip| !trusted.contains(peer_ip) && !bootstrap.contains(peer_ip))
+                .filter(|peer_ip| !trusted.contains(peer_ip) && !bootstrap.contains(peer_ip) && !pool_servers.contains(peer_ip))
                 .choose_multiple(rng, num_surplus);
 
             // Proceed to send disconnect requests to these peers.
