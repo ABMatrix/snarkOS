@@ -18,9 +18,17 @@ use super::*;
 use snarkos_node_messages::NewEpochChallenge;
 use snarkvm::prelude::ProverSolution;
 
-use snarkos_node_messages::{BlockRequest, DisconnectReason, Message, MessageCodec, Ping, Pong};
+use snarkos_node_messages::{
+    BlockRequest,
+    DisconnectReason,
+    Message,
+    MessageCodec,
+    Ping,
+    Pong,
+    UnconfirmedTransaction,
+};
 use snarkos_node_tcp::{Connection, ConnectionSide, Tcp};
-use snarkvm::prelude::Network;
+use snarkvm::prelude::{Network, Transaction};
 
 use futures_util::sink::SinkExt;
 use std::{io, net::SocketAddr};
@@ -133,8 +141,11 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
         tokio::spawn(async move {
             // Sleep for the preset time before sending a `Ping` request.
             tokio::time::sleep(Duration::from_secs(Self::PING_SLEEP_IN_SECS)).await;
-            // Send a `Ping` message to the peer.
-            self_clone.send_ping(peer_ip, None);
+            // Check that the peer is still connected.
+            if self_clone.router().is_connected(&peer_ip) {
+                // Send a `Ping` message to the peer.
+                self_clone.send_ping(peer_ip, None);
+            }
         });
         true
     }
@@ -164,7 +175,7 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
         self.latest_block_header.write().replace(header);
 
         trace!("Received 'PuzzleResponse' from '{peer_ip}' (Epoch {epoch_number}, Block {block_height})");
-        let address = self.account.address();
+        let address = self.router.address();
 
         let pool_servers = self.router().connected_pool_servers();
 
@@ -194,34 +205,57 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Prover<N, C> {
         true
     }
 
-    /// If the last coinbase timestamp exceeds a multiple of the anchor time,
-    /// then the prover will assist by propagating unconfirmed solutions.
-    /// Otherwise, the prover will ignore the message.
+    /// Propagates the unconfirmed solution to all connected validators.
     async fn unconfirmed_solution(
         &self,
         peer_ip: SocketAddr,
         serialized: UnconfirmedSolution<N>,
-        _solution: ProverSolution<N>,
+        solution: ProverSolution<N>,
     ) -> bool {
         let mut excluded_peers = self.router.connected_pool_servers();
-        if self.router.connected_pool_servers().contains(&peer_ip) {
-            self.propagate(Message::UnconfirmedSolution(serialized), excluded_peers);
+        if excluded_peers.contains(&peer_ip) {
+            self.propagate(Message::UnconfirmedSolution(serialized), excluded_peers)
         } else {
-            let last_coinbase_timestamp =
-                self.latest_block_header.read().as_ref().map(|header| header.last_coinbase_timestamp());
-            if let Some(last_coinbase_timestamp) = last_coinbase_timestamp {
-                // Compute the elapsed time since the last coinbase block.
-                let elapsed = OffsetDateTime::now_utc().unix_timestamp().saturating_sub(last_coinbase_timestamp);
-                // If the elapsed time exceeds a multiple of the anchor time, then assist in propagation.
-                if elapsed > N::ANCHOR_TIME as i64 * 6 {
-                    if !excluded_peers.contains(&peer_ip) {
-                        excluded_peers.push(peer_ip)
+            // Retrieve the latest epoch challenge.
+            let epoch_challenge = self.latest_epoch_challenge.read().clone();
+            // Retrieve the latest proof target.
+            let proof_target = self.latest_block_header.read().as_ref().map(|header| header.proof_target());
+
+            if let (Some(epoch_challenge), Some(proof_target)) = (epoch_challenge, proof_target) {
+                // Ensure that the prover solution is valid for the given epoch.
+                let coinbase_puzzle = self.coinbase_puzzle.clone();
+                let is_valid = tokio::task::spawn_blocking(move || {
+                    solution.verify(coinbase_puzzle.coinbase_verifying_key(), &epoch_challenge, proof_target)
+                })
+                .await;
+
+                match is_valid {
+                    // If the solution is valid, propagate the `UnconfirmedSolution`.
+                    Ok(Ok(true)) => {
+                        let message = Message::UnconfirmedSolution(serialized);
+                        // Propagate the "UnconfirmedSolution" to the connected validators.
+                        if !excluded_peers.contains(&peer_ip) {
+                            excluded_peers.push(peer_ip);
+                        }
+                        self.propagate_to_validators(message, excluded_peers);
                     }
-                    // Propagate the `UnconfirmedSolution`.
-                    self.propagate(Message::UnconfirmedSolution(serialized), excluded_peers);
+                    Ok(Ok(false)) | Ok(Err(_)) => {
+                        trace!("Invalid prover solution '{}' for the proof target.", solution.commitment())
+                    }
+                    Err(error) => warn!("Failed to verify the prover solution: {error}"),
                 }
             }
         }
+        true
+    }
+
+    /// Handles an `UnconfirmedTransaction` message.
+    fn unconfirmed_transaction(
+        &self,
+        _peer_ip: SocketAddr,
+        _serialized: UnconfirmedTransaction<N>,
+        _transaction: Transaction<N>,
+    ) -> bool {
         true
     }
 }

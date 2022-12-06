@@ -171,11 +171,22 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
                 .router()
                 .connected_peers()
                 .into_iter()
-                .filter(|peer_ip| !trusted.contains(peer_ip) && !bootstrap.contains(peer_ip) && !pool_servers.contains(peer_ip))
+                .filter(|peer_ip| {
+                    !trusted.contains(peer_ip) && !bootstrap.contains(peer_ip) && !pool_servers.contains(peer_ip)
+                })
                 .choose_multiple(rng, num_surplus);
 
             // Proceed to send disconnect requests to these peers.
             for peer_ip in peer_ips_to_disconnect {
+                // TODO (howardwu): Remove this after specializing this function.
+                if self.router().node_type().is_prover() {
+                    if let Some(peer) = self.router().get_connected_peer(&peer_ip) {
+                        if peer.node_type().is_validator() {
+                            continue;
+                        }
+                    }
+                }
+
                 info!("Disconnecting from '{peer_ip}' (exceeded maximum connections)");
                 self.send(peer_ip, Message::Disconnect(DisconnectReason::TooManyPeers.into()));
                 // Disconnect from this peer.

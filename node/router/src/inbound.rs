@@ -48,9 +48,9 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
             None => bail!("Unable to resolve the (ambiguous) peer address '{peer_addr}'"),
         };
 
-        // Drop the peer, if they have sent more than 250 messages in the last 5 seconds.
+        // Drop the peer, if they have sent more than 1000 messages in the last 5 seconds.
         let num_messages = self.router().cache.insert_inbound_message(peer_ip, 5);
-        if num_messages >= 250 {
+        if num_messages >= 1000 {
             bail!("Dropping '{peer_ip}' for spamming messages (num_messages = {num_messages})")
         }
 
@@ -167,18 +167,14 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
             Message::Disconnect(message) => {
                 bail!("Disconnecting peer '{peer_ip}' for the following reason: {:?}", message.reason)
             }
-            Message::PeerRequest(..) => {
-                // Retrieve the connected peers.
-                let peers = self.router().connected_peers();
-                // Send a `PeerResponse` message to the peer.
-                self.send(peer_ip, Message::PeerResponse(PeerResponse { peers }));
-                Ok(())
-            }
-            Message::PeerResponse(message) => {
-                // Adds the given peer IPs to the list of candidate peers.
-                self.router().insert_candidate_peers(&message.peers);
-                Ok(())
-            }
+            Message::PeerRequest(..) => match self.peer_request(peer_ip) {
+                true => Ok(()),
+                false => bail!("Peer '{peer_ip}' sent an invalid peer request"),
+            },
+            Message::PeerResponse(message) => match self.peer_response(peer_ip, &message.peers) {
+                true => Ok(()),
+                false => bail!("Peer '{peer_ip}' sent an invalid peer response"),
+            },
             Message::Ping(message) => match self.ping(peer_ip, message) {
                 true => Ok(()),
                 false => bail!("Peer '{peer_ip}' sent an invalid ping"),
@@ -298,6 +294,22 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
     /// Handles a `BlockResponse` message.
     fn block_response(&self, peer_ip: SocketAddr, _blocks: Vec<Block<N>>) -> bool;
 
+    /// Handles a `PeerRequest` message.
+    fn peer_request(&self, peer_ip: SocketAddr) -> bool {
+        // Retrieve the connected peers.
+        let peers = self.router().connected_peers();
+        // Send a `PeerResponse` message to the peer.
+        self.send(peer_ip, Message::PeerResponse(PeerResponse { peers }));
+        true
+    }
+
+    /// Handles a `PeerResponse` message.
+    fn peer_response(&self, _peer_ip: SocketAddr, peers: &[SocketAddr]) -> bool {
+        // Adds the given peer IPs to the list of candidate peers.
+        self.router().insert_candidate_peers(peers);
+        true
+    }
+
     fn ping(&self, peer_ip: SocketAddr, message: Ping<N>) -> bool {
         // Ensure the message protocol version is not outdated.
         if message.version < Message::<N>::VERSION {
@@ -383,18 +395,11 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
         solution: ProverSolution<N>,
     ) -> bool;
 
+    /// Handles an `UnconfirmedTransaction` message.
     fn unconfirmed_transaction(
         &self,
         peer_ip: SocketAddr,
         serialized: UnconfirmedTransaction<N>,
         _transaction: Transaction<N>,
-    ) -> bool {
-        let mut excluded_peers = self.router().connected_pool_servers();
-        if !excluded_peers.contains(&peer_ip) {
-            excluded_peers.push(peer_ip)
-        }
-        // Propagate the `UnconfirmedTransaction`.
-        self.propagate(Message::UnconfirmedTransaction(serialized), excluded_peers);
-        true
-    }
+    ) -> bool;
 }

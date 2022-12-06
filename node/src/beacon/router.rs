@@ -187,11 +187,14 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Beacon<N, C> {
         tokio::spawn(async move {
             // Sleep for the preset time before sending a `Ping` request.
             tokio::time::sleep(Duration::from_secs(Self::PING_SLEEP_IN_SECS)).await;
-            // Retrieve the block locators.
-            match crate::helpers::get_block_locators(&self_clone.ledger) {
-                // Send a `Ping` message to the peer.
-                Ok(block_locators) => self_clone.send_ping(peer_ip, Some(block_locators)),
-                Err(e) => error!("Failed to get block locators: {e}"),
+            // Check that the peer is still connected.
+            if self_clone.router().is_connected(&peer_ip) {
+                // Retrieve the block locators.
+                match crate::helpers::get_block_locators(&self_clone.ledger) {
+                    // Send a `Ping` message to the peer.
+                    Ok(block_locators) => self_clone.send_ping(peer_ip, Some(block_locators)),
+                    Err(e) => error!("Failed to get block locators: {e}"),
+                }
             }
         });
         true
@@ -220,11 +223,11 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Beacon<N, C> {
         false
     }
 
-    /// Adds the unconfirmed solution to the memory pool, and propagates the solution to all peers.
+    /// Adds the unconfirmed solution to the memory pool, and propagates the solution to all connected beacons.
     async fn unconfirmed_solution(
         &self,
-        _peer_ip: SocketAddr,
-        _serialized: UnconfirmedSolution<N>,
+        peer_ip: SocketAddr,
+        serialized: UnconfirmedSolution<N>,
         solution: ProverSolution<N>,
     ) -> bool {
         // Add the unconfirmed solution to the memory pool.
@@ -232,19 +235,17 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Beacon<N, C> {
             trace!("[UnconfirmedSolution] {error}");
             return true; // Maintain the connection.
         }
-        // // Propagate the `UnconfirmedSolution` to connected beacons.
-        // let request = RouterRequest::MessagePropagateBeacon(Message::UnconfirmedSolution(message), vec![peer_ip]);
-        // if let Err(error) = router.process(request).await {
-        //     warn!("[UnconfirmedSolution] {error}");
-        // }
+        let message = Message::UnconfirmedSolution(serialized);
+        // Propagate the "UnconfirmedSolution" to the connected beacons.
+        self.propagate_to_beacons(message, vec![peer_ip]);
         true
     }
 
-    /// Adds the unconfirmed transaction to the memory pool, and propagates the transaction to all peers.
+    /// Adds the unconfirmed transaction to the memory pool, and propagates the transaction to all connected beacons.
     fn unconfirmed_transaction(
         &self,
-        _peer_ip: SocketAddr,
-        _serialized: UnconfirmedTransaction<N>,
+        peer_ip: SocketAddr,
+        serialized: UnconfirmedTransaction<N>,
         transaction: Transaction<N>,
     ) -> bool {
         // Add the unconfirmed transaction to the memory pool.
@@ -252,11 +253,9 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Beacon<N, C> {
             trace!("[UnconfirmedTransaction] {error}");
             return true; // Maintain the connection.
         }
-        // // Propagate the `UnconfirmedTransaction`.
-        // let request = RouterRequest::MessagePropagate(Message::UnconfirmedTransaction(message), vec![peer_ip]);
-        // if let Err(error) = router.process(request).await {
-        //     warn!("[UnconfirmedTransaction] {error}");
-        // }
+        let message = Message::UnconfirmedTransaction(serialized);
+        // Propagate the "UnconfirmedTransaction" to the connected beacons.
+        self.propagate_to_beacons(message, vec![peer_ip]);
         true
     }
 }

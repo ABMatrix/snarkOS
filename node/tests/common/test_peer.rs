@@ -84,9 +84,7 @@ impl TestPeer {
                 listener_ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
                 max_connections: 200,
                 ..Default::default()
-            })
-            .await
-            .expect("couldn't create test peer"),
+            }),
             node_type,
             account,
         };
@@ -95,6 +93,8 @@ impl TestPeer {
         peer.enable_reading().await;
         peer.enable_writing().await;
         peer.enable_disconnect().await;
+
+        peer.node().start_listening().await.unwrap();
 
         peer
     }
@@ -155,9 +155,12 @@ impl Handshake for TestPeer {
         framed.send(message).await?;
 
         // Receive the challenge response.
-        let Message::ChallengeResponse(challenge_response) = framed.try_next().await.unwrap().unwrap() else {
-            panic!("didn't get challenge response")
-        };
+        let challenge_response =
+            if let Message::ChallengeResponse(challenge_response) = framed.try_next().await.unwrap().unwrap() {
+                challenge_response
+            } else {
+                panic!("didn't get challenge response");
+            };
 
         assert_eq!(challenge_response.genesis_header, genesis_header);
 
