@@ -75,7 +75,9 @@ impl<N: Network, C: ConsensusStorage<N>> Handshake for Validator<N, C> {
 impl<N: Network, C: ConsensusStorage<N>> Disconnect for Validator<N, C> {
     /// Any extra operations to be performed during a disconnect.
     async fn handle_disconnect(&self, peer_addr: SocketAddr) {
-        self.router.remove_connected_peer(peer_addr);
+        if let Some(peer_ip) = self.router.resolve_to_listener(&peer_addr) {
+            self.router.remove_connected_peer(peer_ip);
+        }
     }
 }
 
@@ -214,37 +216,16 @@ impl<N: Network, C: ConsensusStorage<N>> Inbound<N> for Validator<N, C> {
         serialized: UnconfirmedSolution<N>,
         solution: ProverSolution<N>,
     ) -> bool {
-        // Retrieve the latest epoch challenge.
-        let epoch_challenge = match self.ledger.latest_epoch_challenge() {
-            Ok(epoch_challenge) => epoch_challenge,
-            Err(error) => {
-                error!("Failed to get epoch challenge for unconfirmed solution from '{peer_ip}': {error}");
-                return false;
-            }
-        };
-
-        // Retrieve the latest proof target.
-        let proof_target = self.ledger.latest_header().proof_target();
-
-        // Ensure that the prover solution is valid for the given epoch.
-        let coinbase_puzzle = self.coinbase_puzzle.clone();
-        let is_valid = tokio::task::spawn_blocking(move || {
-            solution.verify(coinbase_puzzle.coinbase_verifying_key(), &epoch_challenge, proof_target)
-        })
-        .await;
-
-        match is_valid {
-            // If the solution is valid, propagate the `UnconfirmedSolution`.
-            Ok(Ok(true)) => {
-                let message = Message::UnconfirmedSolution(serialized);
-                // Propagate the "UnconfirmedSolution" to the connected beacons.
-                self.propagate_to_beacons(message.clone(), vec![peer_ip]);
-                // Propagate the "UnconfirmedSolution" to the connected validators.
-                self.propagate_to_validators(message, vec![peer_ip]);
-            }
-            Ok(Ok(false)) | Ok(Err(_)) => (),
-            Err(error) => warn!("Failed to verify an unconfirmed solution from '{peer_ip}': {error}"),
+        // Add the unconfirmed solution to the memory pool.
+        if let Err(error) = self.consensus.add_unconfirmed_solution(&solution) {
+            trace!("[UnconfirmedSolution] {error}");
+            return true; // Maintain the connection.
         }
+        let message = Message::UnconfirmedSolution(serialized);
+        // Propagate the "UnconfirmedSolution" to the connected beacons.
+        self.propagate_to_beacons(message.clone(), vec![peer_ip]);
+        // Propagate the "UnconfirmedSolution" to the connected validators.
+        self.propagate_to_validators(message, vec![peer_ip]);
         true
     }
 
