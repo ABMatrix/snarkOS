@@ -17,7 +17,7 @@
 use snarkos_account::Account;
 use snarkos_display::Display;
 use snarkos_node::{Node, NodeType};
-use snarkvm::prelude::{Block, ConsensusMemory, ConsensusStore, FromBytes, Network, PrivateKey, Testnet3, VM};
+use snarkvm::prelude::{Block, ConsensusMemory, ConsensusStore, FromBytes, Network, PrivateKey, Testnet3, ToBytes, VM};
 
 use anyhow::{bail, Result};
 use clap::Parser;
@@ -25,6 +25,8 @@ use colored::Colorize;
 use core::str::FromStr;
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
+use std::fs::File;
+use std::io::Write;
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::runtime::{self, Runtime};
 
@@ -190,6 +192,11 @@ impl Start {
             // Initialize the genesis block.
             let genesis = Block::genesis(&vm, &beacon_private_key, &mut rng)?;
 
+            let b = genesis.to_bytes_le()?;
+            let mut file = File::create("/tmp/block.genesis")?;
+            file.write_all(&b)?;
+            file.flush()?;
+
             // A helper method to set the account private key in the node type.
             let sample_account = |node: &mut Option<String>, is_beacon: bool| -> Result<()> {
                 let account = match is_beacon {
@@ -353,10 +360,10 @@ mod tests {
 
         let config = Start::try_parse_from(["snarkos", "--connect", "1.2.3.4:5,6.7.8.9:0"].iter()).unwrap();
         assert!(config.parse_trusted_peers().is_ok());
-        assert_eq!(config.parse_trusted_peers().unwrap(), vec![
-            SocketAddr::from_str("1.2.3.4:5").unwrap(),
-            SocketAddr::from_str("6.7.8.9:0").unwrap()
-        ]);
+        assert_eq!(
+            config.parse_trusted_peers().unwrap(),
+            vec![SocketAddr::from_str("1.2.3.4:5").unwrap(), SocketAddr::from_str("6.7.8.9:0").unwrap()]
+        );
     }
 
     #[test]
