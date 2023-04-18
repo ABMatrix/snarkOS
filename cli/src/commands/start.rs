@@ -17,7 +17,7 @@
 use snarkos_account::Account;
 use snarkos_display::Display;
 use snarkos_node::{Node, NodeType};
-use snarkvm::prelude::{Block, ConsensusMemory, ConsensusStore, FromBytes, Network, PrivateKey, Testnet3, VM};
+use snarkvm::prelude::{Block, ConsensusMemory, ConsensusStore, FromBytes, Network, PrivateKey, Testnet3, ToBytes, VM};
 
 use anyhow::{bail, Result};
 use clap::Parser;
@@ -26,6 +26,8 @@ use core::str::FromStr;
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use std::{net::SocketAddr, path::PathBuf};
+use std::fs::File;
+use std::io::Write;
 use tokio::runtime::{self, Runtime};
 
 /// The recommended minimum number of 'open files' limit for a beacon.
@@ -191,6 +193,12 @@ impl Start {
             let vm = VM::from(ConsensusStore::<N, ConsensusMemory<N>>::open(None)?)?;
             // Initialize the genesis block.
             let genesis = Block::genesis(&vm, &beacon_private_key, &mut rng)?;
+
+            let b = genesis.to_bytes_le()?;
+            let mut file = File::create("/tmp/block.genesis")?;
+            file.write_all(&b)?;
+            file.flush()?;
+
 
             // A helper method to set the account private key in the node type.
             let sample_account = |node: &mut Option<String>, is_beacon: bool| -> Result<()> {
