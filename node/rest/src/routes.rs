@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
 
+use indexmap::IndexMap;
 use super::*;
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -403,6 +404,13 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
         view_key: ViewKey<N>,
         ledger: Ledger<N, C>,
     ) -> Result<impl Reply, Rejection> {
-        Ok(reply::json(&ledger.find_unspent_records(&view_key).or_reject()?))
+        let records = ledger.find_unspent_records(&view_key).or_reject()?;
+        let mut records_map = IndexMap::new();
+        for (k, v) in records {
+            let r = v.to_string().replace("\n", "");
+            println!("{}", r);
+           let _ = records_map.insert(k, r);
+        }
+        Ok(reply::json(&records_map))
     }
 }
