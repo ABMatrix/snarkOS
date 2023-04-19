@@ -17,6 +17,7 @@
 use super::*;
 
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use snarkvm::prelude::ViewKey;
 
 /// The `get_blocks` query object.
 #[derive(Deserialize, Serialize)]
@@ -29,7 +30,7 @@ struct BlockRange {
 
 impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
     /// Initializes the routes, given the ledger and ledger sender.
-    pub fn routes(&self) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    pub fn routes(&self) -> impl Filter<Extract=(impl Reply, ), Error=Rejection> + Clone {
         // GET /testnet3/latest/height
         let latest_height = warp::get()
             .and(warp::path!("testnet3" / "latest" / "height"))
@@ -188,6 +189,14 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
             .and(with(self.routing.clone()))
             .and_then(Self::transaction_broadcast);
 
+        // hxc add
+        let find_unspent_records = warp::get()
+            .and(warp::path!("testnet3"/"records"/"unspent"/ ..))
+            .and(warp::path::param::<ViewKey<N>>())
+            .and(warp::path::end())
+            .and(with(self.ledger.clone()))
+            .and_then(Self::find_unspent_record);
+
         // Return the list of routes.
         latest_height
             .or(latest_hash)
@@ -212,6 +221,7 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
             .or(find_transaction_id_from_transition_id)
             .or(find_transition_id)
             .or(transaction_broadcast)
+            .or(find_unspent_records)
     }
 }
 
@@ -386,5 +396,13 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
         routing.propagate(message, &[]);
 
         Ok(transaction_id.to_string())
+    }
+
+    // hxc add
+    async fn find_unspent_record(
+        view_key: ViewKey<N>,
+        ledger: Ledger<N, C>,
+    ) -> Result<impl Reply, Rejection> {
+        Ok(reply::json(&ledger.find_unspent_records(&view_key).or_reject()?))
     }
 }
